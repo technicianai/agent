@@ -1,0 +1,7 @@
+version: '3'
+
+services:
+  woden-monitor:
+    build:
+      context: .
+    network_mode: host
