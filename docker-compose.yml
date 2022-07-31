@@ -5,3 +5,5 @@ services:
     build:
       context: .
     network_mode: host
+    volumes:
+      - /tmp/woden:/tmp/woden

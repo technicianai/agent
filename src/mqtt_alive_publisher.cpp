@@ -1,5 +1,8 @@
 #include <chrono>
 #include <memory>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
@@ -17,8 +20,17 @@ public:
         .finalize();
     client_.connect(connect_options);
 
-    timer_ = this->create_wall_timer(
-      std::chrono::seconds(60), std::bind(&mqtt_alive_publisher::timer_callback, this));
+    std::ifstream id_file;
+    id_file.open("/tmp/woden/id");
+    int id;
+    id_file >> id;
+    std::stringstream stream;
+    stream << "/";
+    stream << id;
+    stream << "/alive";
+    
+    std::function<void ()> callback = std::bind(&mqtt_alive_publisher::timer_callback, this, stream.str());
+    timer_ = this->create_wall_timer(std::chrono::seconds(1), callback);
   }
 
   ~mqtt_alive_publisher()
@@ -27,14 +39,15 @@ public:
   }
 
 private:
-  void timer_callback()
+  void timer_callback(std::string topic)
   {
     try {
-        const char* payload = "alive";
-        mqtt::message_ptr msg = mqtt::make_message("alive", payload);
+        const char* payload = "1";
+        RCLCPP_INFO(get_logger(), topic.c_str());
+        mqtt::message_ptr msg = mqtt::make_message(topic, payload);
         client_.publish(msg);
     } catch (const mqtt::exception& exc) {
-        RCLCPP_ERROR(get_logger(), "mqtt error");
+        RCLCPP_ERROR(get_logger(), exc.what());
     }
   }
 
