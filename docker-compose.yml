@@ -5,5 +5,6 @@ services:
     build:
       context: .
     network_mode: host
+    privileged: true
     volumes:
-      - /tmp/woden:/tmp/woden
+      - ~/woden:/woden

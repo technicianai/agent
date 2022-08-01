@@ -21,7 +21,7 @@ public:
     client_.connect(connect_options);
 
     std::ifstream id_file;
-    id_file.open("/tmp/woden/id");
+    id_file.open("/woden/id");
     int id;
     id_file >> id;
     std::stringstream stream;
