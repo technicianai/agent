@@ -1,6 +1,6 @@
 #!/bin/bash
 
 . /opt/ros/humble/setup.bash
-. ws/install/setup.bash
+. install/setup.bash
 
-ros2 run woden-monitor alive
+ros2 launch launch/launch.py

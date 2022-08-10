@@ -5,6 +5,5 @@ services:
     build:
       context: .
     network_mode: host
-    privileged: true
     volumes:
       - ~/woden:/woden
