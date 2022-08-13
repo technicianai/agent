@@ -9,6 +9,9 @@
 #include <filesystem>
 
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <nlohmann/json.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <rcl_interfaces/msg/parameter_event.h>
@@ -38,12 +41,22 @@ public:
     int id;
     id_file >> id;
 
+    std::string mounts_output = execute_command("df --output='target','avail' -B 1 | tail -n +2 | tr -s ' '");
+    nlohmann::json mounts = parse_mounts(mounts_output);
+
+    std::string execs_output = execute_command("ros2 pkg executables");
+    nlohmann::json execs = parse_executables(execs_output);
+
+    nlohmann::json config;
+    config["executables"] = execs;
+    config["mounted_paths"] = mounts;
+
     std::stringstream bag_path;
     bag_path << getenv("HOME");
     bag_path << "/woden/bags/";
     
     std::string alive_topic = mqtt_topic(id, "alive");
-    std::string executables_topic = mqtt_topic(id, "executables");
+    std::string config_topic = mqtt_topic(id, "config");
     std::string nodes_topic = mqtt_topic(id, "nodes");
     std::string topics_topic = mqtt_topic(id, "topics");
     std::string start_recording_topic = mqtt_topic(id, "record");
@@ -51,6 +64,9 @@ public:
     std::string stopped_recording_topic = mqtt_topic(id, "stopped");
     std::string started_recording_topic = mqtt_topic(id, "started");
     std::string recording_topic = mqtt_topic(id, "recording");
+    std::string upload_topic = mqtt_topic(id, "upload");
+    std::string uploading_topic = mqtt_topic(id, "uploading");
+    std::string uploaded_topic = mqtt_topic(id, "uploaded");
 
     auto connect_options = mqtt::connect_options_builder() 
         .keep_alive_interval(std::chrono::seconds(20))
@@ -62,15 +78,9 @@ public:
       { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 },
     };
     client_.connect(connect_options);
-    try {
-      client_.subscribe(start_recording_topic, 0, subOpts, props);
-      client_.subscribe(stop_recording_topic, 0, subOpts, props);
-    } catch (mqtt::exception e) {
-      RCLCPP_ERROR(get_logger(), "%s", e.what());
-    }
 
-    std::string executables = fetch_executables();
-    mqtt::message_ptr msg = mqtt::make_message(executables_topic, executables.c_str());
+    sleep(5);
+    mqtt::message_ptr msg = mqtt::make_message(config_topic, config.dump().c_str());
     client_.publish(msg);
     
     std::function<void ()> alive_callback = std::bind(&mqtt_alive_publisher::timer_callback, this, alive_topic);
@@ -85,20 +95,23 @@ public:
     std::function<void ()> topics_callback = std::bind(&mqtt_alive_publisher::topics, this, topics_topic);
     topics_timer_ = this->create_wall_timer(std::chrono::seconds(SAMPLING_INTERVAL), topics_callback);
 
-    std::function<void ()> consume_callback = std::bind(&mqtt_alive_publisher::consume_message, this, start_recording_topic, stop_recording_topic, stopped_recording_topic, started_recording_topic, bag_path.str());
-    consume_timer_ = this->create_wall_timer(std::chrono::seconds(5), consume_callback);
-
     std::function<void ()> recording_callback = std::bind(&mqtt_alive_publisher::recording_status, this, bag_path.str(), recording_topic);
     recording_timer_ = this->create_wall_timer(std::chrono::seconds(RECORDING_STATUS_INTERVAL), recording_callback);
 
-    // client_.subscribe(start_recording_topic, 0, subOpts, props);
-    // client_.subscribe(stop_recording_topic, 0, subOpts, props);
-    // callback cb(client_, start_recording_topic, stop_recording_topic, stopped_recording_topic);
-    // client_.set_callback(cb);
-    client_.subscribe(start_recording_topic, 0, subOpts, props);
-    client_.subscribe(stop_recording_topic, 0, subOpts, props);
+    while (!client_.is_connected()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
+    try {
+      client_.subscribe(start_recording_topic, 0, subOpts, props);
+      client_.subscribe(stop_recording_topic, 0, subOpts, props);
+      client_.subscribe(upload_topic, 0, subOpts, props);
+      client_.start_consuming();
+    } catch (mqtt::exception& e) {
+      RCLCPP_ERROR(get_logger(), "%s", e.what());
+    }
 
-    client_.start_consuming();
+    std::function<void ()> consume_callback = std::bind(&mqtt_alive_publisher::consume_message, this, start_recording_topic, stop_recording_topic, stopped_recording_topic, started_recording_topic, upload_topic, uploaded_topic, bag_path.str());
+    consume_timer_ = this->create_wall_timer(std::chrono::seconds(5), consume_callback);
   }
 
   ~mqtt_alive_publisher()
@@ -109,7 +122,6 @@ public:
 private:
   void timer_callback(std::string topic)
   {
-    RCLCPP_INFO(get_logger(), "here");
     try {
         const char* payload = "1";
         mqtt::message_ptr msg = mqtt::make_message(topic, payload);
@@ -119,35 +131,53 @@ private:
     }
   }
 
-  std::string fetch_executables()
+  std::string execute_command(const char* command)
   {
     std::array<char, 128> buffer;
     std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("ros2 pkg executables", "r"), pclose);
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command, "r"), pclose);
     if (!pipe) {
-        throw std::runtime_error("popen() failed!");
+      throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
+      result += buffer.data();
     }
-    // std::string result = command("ros2 pkg executables");
-    std::istringstream ss(result);
+    return result;
+  }
+
+  nlohmann::json parse_executables(std::string command_output)
+  {
+    std::istringstream ss(command_output);
+    nlohmann::json executables;
     std::string line;
-    std::map<std::string, std::vector<std::string>> executables;
     while (getline(ss, line)) {
         auto pos = line.find(" ");
         std::string pkg = line.substr(0, pos);
         std::string exec = line.substr(pos+1, line.length());
-        auto it = executables.find(pkg);
-        if (it == executables.end()) {
-          std::vector<std::string> execs = { exec };
-          executables.insert(std::make_pair(pkg, execs));
-        } else {
-          std::vector<std::string> execs = it->second;
-          execs.push_back(exec);
+        executables[pkg].push_back(exec);
+    }
+    return executables;
+  }
+
+  nlohmann::json parse_mounts(std::string command_output)
+  {
+    std::istringstream ss(command_output);
+    std::string line;
+    nlohmann::json mounts;
+    while (getline(ss, line)) {
+        auto pos = line.find(" ");
+        std::string path = line.substr(0, pos);
+        long avail = std::stol(line.substr(pos+1, line.length()));
+        struct stat path_stat;
+        stat(path.c_str(), &path_stat);
+        if (access(path.c_str(), W_OK) == 0 && !S_ISREG(path_stat.st_mode)) {
+          nlohmann::json mount;
+          mount["path"] = path;
+          mount["available"] = avail;
+          mounts.push_back(mount);
         }
     }
-    return nlohmann::json(executables).dump();
+    return mounts;
   }
 
   void update_nodes(std::string topic)
@@ -193,12 +223,14 @@ private:
       nodes.push_back(node);
     }
 
-    try {
-        std::string payload = nlohmann::json(nodes).dump();
-        mqtt::message_ptr msg = mqtt::make_message(topic, payload.c_str());
-        client_.publish(msg);
-    } catch (const mqtt::exception& exc) {
-        RCLCPP_ERROR(get_logger(), exc.what());
+    std::string payload = nlohmann::json(nodes).dump();
+    if (previous_nodes_.empty() || previous_nodes_ != payload) {
+      try {
+          mqtt::message_ptr msg = mqtt::make_message(topic, payload.c_str());
+          client_.publish(msg);
+      } catch (const mqtt::exception& exc) {
+          RCLCPP_ERROR(get_logger(), exc.what());
+      }
     }
   }
 
@@ -224,8 +256,6 @@ private:
         }
       }
       if (!known) {
-        // subscription config = {.name = it1->first, .types = it1->second, .message_count = 0};
-        // subscription* ptr = &config;
         subscription * config = new subscription{.name = it1->first, .types = it1->second, .message_count = 0};
 
         rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
@@ -266,93 +296,106 @@ private:
       topic_data.push_back(info);
     }
     std::string payload = nlohmann::json(topic_data).dump();
-    try {
+    if (previous_topics_.empty() || previous_topics_ != payload) {
+      try {
         mqtt::message_ptr msg = mqtt::make_message(mqtt_topic, payload.c_str());
         client_.publish(msg);
-    } catch (const mqtt::exception& exc) {
-        RCLCPP_ERROR(get_logger(), exc.what());
+      } catch (const mqtt::exception& exc) {
+          RCLCPP_ERROR(get_logger(), exc.what());
+      }
+      previous_topics_ = payload;
     }
   }
 
-  void consume_message(std::string start_topic, std::string stop_topic, std::string stopped_topic, std::string started_topic, std::string bag_path)
+  void consume_message(std::string start_topic, std::string stop_topic, std::string stopped_topic, std::string started_topic, std::string upload_topic, std::string uploaded_topic, std::string bag_path)
   {
     mqtt::const_message_ptr msg;
-    bool has_msg = client_.try_consume_message(&msg);
-    if (has_msg) {
-      if (msg->get_topic() == start_topic) {
-        bag_recording_pid_ = fork();
-        if (bag_recording_pid_ < 0) {
-          RCLCPP_ERROR(get_logger(), "error forking process");
-        } else if (bag_recording_pid_ == 0) {
-          std::string full_bag_path = bag_path + bag_recording_id_;
-          std::string payload = msg->to_string();
-          nlohmann::json data = nlohmann::json::parse(payload);
-          bag_recording_id_ = std::to_string(data["id"].get<int>());
-          nlohmann::json topics = data["topics"];
-          int num_args = topics.size() + 6;
-          char* args[num_args] = {"ros2", "bag", "record"};
-          int i = 3;
-          for (auto& topic : topics) {
-            std::string str_name = topic["name"].get<std::string>();
-            const char* name = str_name.c_str();
-            args[i] = (char*) malloc(strlen(name)+1);
-            strcpy(args[i], name);
-            i++;
-          }
-          args[num_args-3] = "-o";
-          args[num_args-2] = const_cast<char*>(full_bag_path.c_str());
-          args[num_args-1] = NULL;
-          execvp("ros2", args);
-        } else if (bag_recording_pid_ > 0) {
-          recording_ = true;
-          try {
-              nlohmann::json message_data;
-              message_data["id"] = bag_recording_id_;
-              mqtt::message_ptr msg = mqtt::make_message(started_topic, message_data.dump());
-              client_.publish(msg);
-          } catch (const mqtt::exception& exc) {
-              RCLCPP_ERROR(get_logger(), exc.what());
-          }
+    if (!client_.try_consume_message(&msg)) return;
+    if (msg->get_topic() == start_topic) {
+      std::string payload = msg->to_string();
+      nlohmann::json data = nlohmann::json::parse(payload);
+      bag_recording_id_ = std::to_string(data["id"].get<int>());
+      std::string base_path = data["base_path"];
+      current_bag_path_ = base_path + "/woden/bags/" + bag_recording_id_;
+      bag_recording_pid_ = fork();
+      if (bag_recording_pid_ < 0) {
+        RCLCPP_ERROR(get_logger(), "error forking process");
+      } else if (bag_recording_pid_ == 0) {
+        nlohmann::json topics = data["topics"];
+        int num_args = topics.size() + 6;
+        char* args[num_args] = {"ros2", "bag", "record"};
+        int i = 3;
+        for (auto& topic : topics) {
+          std::string str_name = topic["name"].get<std::string>();
+          const char* name = str_name.c_str();
+          args[i] = (char*) malloc(strlen(name)+1);
+          strcpy(args[i], name);
+          i++;
         }
-      } else if (msg->get_topic() == stop_topic) {
-        if (bag_recording_pid_ > 0) {
-          kill(bag_recording_pid_, SIGINT);
-          RCLCPP_INFO(get_logger(), "Stopped recording");
-          sleep(10);
-          std::string full_bag_path = bag_path + bag_recording_id_;
-          std::uintmax_t size = directory_size(full_bag_path);
-          std::ifstream t(full_bag_path + "/metadata.yaml");
-          std::stringstream buffer;
-          buffer << t.rdbuf();
-          std::string metadata = buffer.str();
-          nlohmann::json message_data;
-          message_data["yaml"] = metadata;
-          message_data["id"] = bag_recording_id_;
-          message_data["size"] = size;
-          try {
-              mqtt::message_ptr msg = mqtt::make_message(stopped_topic, message_data.dump());
-              client_.publish(msg);
-          } catch (const mqtt::exception& exc) {
-              RCLCPP_ERROR(get_logger(), exc.what());
-          }
-          recording_ = false;
+        args[num_args-3] = "-o";
+        args[num_args-2] = const_cast<char*>(current_bag_path_.c_str());
+        args[num_args-1] = NULL;
+        execvp("ros2", args);
+      } else if (bag_recording_pid_ > 0) {
+        recording_ = true;
+        try {
+            nlohmann::json message_data;
+            message_data["id"] = bag_recording_id_;
+            mqtt::message_ptr msg = mqtt::make_message(started_topic, message_data.dump());
+            client_.publish(msg);
+        } catch (const mqtt::exception& exc) {
+            RCLCPP_ERROR(get_logger(), exc.what());
         }
       }
-    }
-    else if (!client_.is_connected()) {
-      while (!client_.is_connected()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    } else if (msg->get_topic() == stop_topic) {
+      if (bag_recording_pid_ > 0) {
+        kill(bag_recording_pid_, SIGINT);
+        sleep(10);
+        std::uintmax_t size = directory_size(current_bag_path_);
+        std::ifstream t(current_bag_path_ + "/metadata.yaml");
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string metadata = buffer.str();
+        nlohmann::json message_data;
+        message_data["yaml"] = metadata;
+        message_data["id"] = bag_recording_id_;
+        message_data["size"] = size;
+        try {
+            mqtt::message_ptr msg = mqtt::make_message(stopped_topic, message_data.dump());
+            client_.publish(msg);
+        } catch (const mqtt::exception& exc) {
+            RCLCPP_ERROR(get_logger(), exc.what());
+        }
+        recording_ = false;
       }
+    } else if (msg->get_topic() == upload_topic) {
+      std::string payload = msg->to_string();
+      nlohmann::json data = nlohmann::json::parse(payload);
+      std::string base_path = data["base_path"];
+      std::string str_id = std::to_string(data["id"].get<int>());
+      nlohmann::json urls = data["urls"];
+      int num_args = 4 + urls.size();
+      std::string command = "python3 /woden_monitor/bag_utils/upload.py " + str_id + " " + base_path + " ";
+      for (auto& json_url : urls) {
+        std::string str_url = "\"" + json_url.get<std::string>() + "\"";
+        command += str_url + " ";
+      }
+      auto logger = get_logger();
+      auto f = [command, uploaded_topic, this]() {
+        std::string result = execute_command(command.c_str());
+        mqtt::message_ptr msg = mqtt::make_message(uploaded_topic, result.c_str());
+        this->client_.publish(msg);
+      };
+      std::thread thread_object(f);
+      thread_object.detach();
     }
-    RCLCPP_INFO(get_logger(), "issue");
   }
 
   void recording_status(std::string bag_path, std::string started_topic)
   {
     if (recording_) {
       try {
-        std::string full_bag_path = bag_path + bag_recording_id_;
-        std::uintmax_t size = directory_size(full_bag_path);
+        std::uintmax_t size = directory_size(current_bag_path_);
         double rate = (size - previous_size_) / RECORDING_STATUS_INTERVAL;
         previous_size_ = size;
         nlohmann::json message_data;
@@ -380,12 +423,6 @@ private:
     return size;
   }
 
-  // std::string command(std::string cmd)
-  // {
-  //   std::array<char, 128> buffer;
-  //   FILE* pipe(popen(cmd.c_str(), "r"), pclose);
-  // }
-
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::TimerBase::SharedPtr nodes_timer_;
   rclcpp::TimerBase::SharedPtr topic_discovery_timer_;
@@ -397,7 +434,11 @@ private:
   mqtt::async_client client_;
   std::vector<std::string> all_nodes_;
   int bag_recording_pid_;
+  int bag_upload_pid_;
   std::string bag_recording_id_;
+  std::string current_bag_path_;
+  std::string previous_topics_;
+  std::string previous_nodes_;
   std::uintmax_t previous_size_ = 0;
   bool recording_ = false;
 
