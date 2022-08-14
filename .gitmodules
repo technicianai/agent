@@ -4,3 +4,6 @@
 [submodule "dependencies/paho.mqtt.cpp"]
 	path = dependencies/paho.mqtt.cpp
 	url = https://github.com/eclipse/paho.mqtt.cpp
+[submodule "src/topic_tools"]
+	path = src/topic_tools
+	url = https://github.com/ros-tooling/topic_tools.git

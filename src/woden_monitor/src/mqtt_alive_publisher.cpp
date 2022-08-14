@@ -8,6 +8,7 @@
 #include <thread>
 #include <filesystem>
 
+#include <sqlite3.h> 
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -27,6 +28,10 @@ struct subscription
   std::vector<std::string> types;
   int message_count;
 };
+
+static int sql_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+   return 0;
+}
 
 class mqtt_alive_publisher : public rclcpp::Node
 {
@@ -286,7 +291,7 @@ private:
     for (auto it = subscription_data_.begin(); it != subscription_data_.end(); ++it) {
       subscription* config = it->second;
 
-      double frequency = config->message_count / SAMPLING_INTERVAL;
+      double frequency = (double) config->message_count / (double) SAMPLING_INTERVAL;
       config->message_count = 0;
       
       std::map<std::string, std::string> info;
@@ -317,24 +322,67 @@ private:
       bag_recording_id_ = std::to_string(data["id"].get<int>());
       std::string base_path = data["base_path"];
       current_bag_path_ = base_path + "/woden/bags/" + bag_recording_id_;
+
+      nlohmann::json topics = data["topics"];
+      for (auto& topic : topics) {
+        if (!topic["max_frequency"].get<bool>()) {
+          continue;
+        }
+        int pid = fork();
+        if (pid == 0) {
+          setsid();
+          char* args[8];
+          int i = 0;
+
+          std::string str_name = topic["name"].get<std::string>();
+          std::string freq = std::to_string(topic["frequency"].get<double>());
+
+          args[i++] = "ros2";
+          args[i++] = "run";
+          args[i++] = "topic_tools";
+          args[i++] = "throttle";
+          args[i++] = "messages";
+
+          const char* intopic = str_name.c_str();
+          args[i] = (char*) malloc(strlen(intopic)+1);
+          strcpy(args[i++], intopic);
+
+          const char* msgs_per_sec = freq.c_str();
+          args[i] = (char*) malloc(strlen(msgs_per_sec)+1);
+          strcpy(args[i++], msgs_per_sec);
+
+          std::string outtopic_str = str_name + "/throttle";
+          const char* outtopic = outtopic_str.c_str();
+          args[i] = (char*) malloc(strlen(outtopic)+1);
+          strcpy(args[i++], outtopic);
+
+          args[i] = NULL;
+
+          execvp("ros2", args);
+        } else if (pid > 0) {
+          throttle_pids_.push_back(pid);
+        }
+      }
+
       bag_recording_pid_ = fork();
       if (bag_recording_pid_ < 0) {
         RCLCPP_ERROR(get_logger(), "error forking process");
       } else if (bag_recording_pid_ == 0) {
-        nlohmann::json topics = data["topics"];
-        int num_args = topics.size() + 6;
-        char* args[num_args] = {"ros2", "bag", "record"};
+        char* args[topics.size() + 6] = { "ros2", "bag", "record" };
         int i = 3;
         for (auto& topic : topics) {
           std::string str_name = topic["name"].get<std::string>();
+          if (topic["max_frequency"].get<bool>()) {
+            str_name += "/throttle";
+          }
           const char* name = str_name.c_str();
           args[i] = (char*) malloc(strlen(name)+1);
-          strcpy(args[i], name);
-          i++;
+          strcpy(args[i++], name);
         }
-        args[num_args-3] = "-o";
-        args[num_args-2] = const_cast<char*>(current_bag_path_.c_str());
-        args[num_args-1] = NULL;
+        args[i++] = "-o";
+        args[i++] = const_cast<char*>(current_bag_path_.c_str());
+        args[i++] = NULL;
+
         execvp("ros2", args);
       } else if (bag_recording_pid_ > 0) {
         recording_ = true;
@@ -350,12 +398,39 @@ private:
     } else if (msg->get_topic() == stop_topic) {
       if (bag_recording_pid_ > 0) {
         kill(bag_recording_pid_, SIGINT);
+        for (int pid : throttle_pids_) {
+          int pgid = getpgid(pid);
+          killpg(pgid, SIGKILL);
+        }
         sleep(10);
+
+        // update topic names
+        for (const auto & entry : std::filesystem::directory_iterator(current_bag_path_)) {
+          std::string db_path = entry.path();
+          if (db_path.find(".db3") != std::string::npos) {
+            sqlite3 *db;
+            int rc = sqlite3_open(db_path.c_str(), &db);
+            char *zErrMsg = 0;
+            rc = sqlite3_exec(db, "UPDATE topics SET name=replace(name, '/throttle', '');", sql_callback, 0, &zErrMsg);
+            sqlite3_close(db);
+          }
+        }
+
         std::uintmax_t size = directory_size(current_bag_path_);
+
+        // remove "/throttle" from metadata.yaml
         std::ifstream t(current_bag_path_ + "/metadata.yaml");
         std::stringstream buffer;
         buffer << t.rdbuf();
         std::string metadata = buffer.str();
+        size_t pos = 0;
+        while((pos = metadata.find("/throttle", pos)) != std::string::npos) {
+          metadata.replace(pos, 9, "");
+        }
+        std::ofstream out(current_bag_path_ + "/metadata.yaml");
+        out << metadata;
+        out.close();
+
         nlohmann::json message_data;
         message_data["yaml"] = metadata;
         message_data["id"] = bag_recording_id_;
@@ -435,6 +510,7 @@ private:
   std::vector<std::string> all_nodes_;
   int bag_recording_pid_;
   int bag_upload_pid_;
+  std::vector<int> throttle_pids_;
   std::string bag_recording_id_;
   std::string current_bag_path_;
   std::string previous_topics_;

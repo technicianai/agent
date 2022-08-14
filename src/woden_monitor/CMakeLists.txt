@@ -26,10 +26,11 @@ find_package(ament_cmake REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package (SQLite3 REQUIRED)
 
 add_executable(alive src/mqtt_alive_publisher.cpp)
 ament_target_dependencies(alive rclcpp std_msgs)
-target_link_libraries(alive paho-mqttpp3 nlohmann_json::nlohmann_json)
+target_link_libraries(alive paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
 
 install(TARGETS alive
   DESTINATION lib/${PROJECT_NAME})
