@@ -33,37 +33,34 @@ static int sql_callback(void *NotUsed, int argc, char **argv, char **azColName) 
    return 0;
 }
 
-class mqtt_alive_publisher : public rclcpp::Node
+class woeden_monitor : public rclcpp::Node
 {
 public:
-  mqtt_alive_publisher() : Node("mqtt_alive_publisher"), client_("tcp://localhost:1883", "paho-cpp-data-publish", nullptr)
+  woeden_monitor() : Node("woeden_monitor"), client_("tcp://localhost:1883", "paho-cpp-data-publish", nullptr)
   {
     std::stringstream id_path;
     id_path << getenv("HOME");
-    id_path << "/woden/id";
+    id_path << "/woeden/id";
     std::ifstream id_file;
     id_file.open(id_path.str());
     int id;
     id_file >> id;
-
-    std::string mounts_output = execute_command("df --output='target','avail' -B 1 | tail -n +2 | tr -s ' '");
-    nlohmann::json mounts = parse_mounts(mounts_output);
 
     std::string execs_output = execute_command("ros2 pkg executables");
     nlohmann::json execs = parse_executables(execs_output);
 
     nlohmann::json config;
     config["executables"] = execs;
-    config["mounted_paths"] = mounts;
 
     std::stringstream bag_path;
     bag_path << getenv("HOME");
-    bag_path << "/woden/bags/";
+    bag_path << "/woeden/bags/";
     
     std::string alive_topic = mqtt_topic(id, "alive");
     std::string config_topic = mqtt_topic(id, "config");
     std::string nodes_topic = mqtt_topic(id, "nodes");
     std::string topics_topic = mqtt_topic(id, "topics");
+    std::string mounted_paths_topic = mqtt_topic(id, "mounted_paths");
     std::string start_recording_topic = mqtt_topic(id, "record");
     std::string stop_recording_topic = mqtt_topic(id, "stop");
     std::string stopped_recording_topic = mqtt_topic(id, "stopped");
@@ -88,19 +85,22 @@ public:
     mqtt::message_ptr msg = mqtt::make_message(config_topic, config.dump().c_str());
     client_.publish(msg);
     
-    std::function<void ()> alive_callback = std::bind(&mqtt_alive_publisher::timer_callback, this, alive_topic);
+    std::function<void ()> alive_callback = std::bind(&woeden_monitor::timer_callback, this, alive_topic);
     timer_ = this->create_wall_timer(std::chrono::seconds(15), alive_callback);
 
-    std::function<void ()> nodes_callback = std::bind(&mqtt_alive_publisher::update_nodes, this, nodes_topic);
+    std::function<void ()> nodes_callback = std::bind(&woeden_monitor::update_nodes, this, nodes_topic);
     nodes_timer_ = this->create_wall_timer(std::chrono::seconds(15), nodes_callback);
 
-    std::function<void ()> topic_discovery_callback = std::bind(&mqtt_alive_publisher::discover_topics, this);
+    std::function<void ()> mounted_paths_callback = std::bind(&woeden_monitor::update_mounts, this, mounted_paths_topic);
+    mounted_paths_timer_ = this->create_wall_timer(std::chrono::seconds(5), mounted_paths_callback);
+
+    std::function<void ()> topic_discovery_callback = std::bind(&woeden_monitor::discover_topics, this);
     topic_discovery_timer_ = this->create_wall_timer(std::chrono::seconds(15), topic_discovery_callback);
 
-    std::function<void ()> topics_callback = std::bind(&mqtt_alive_publisher::topics, this, topics_topic);
+    std::function<void ()> topics_callback = std::bind(&woeden_monitor::topics, this, topics_topic);
     topics_timer_ = this->create_wall_timer(std::chrono::seconds(SAMPLING_INTERVAL), topics_callback);
 
-    std::function<void ()> recording_callback = std::bind(&mqtt_alive_publisher::recording_status, this, bag_path.str(), recording_topic);
+    std::function<void ()> recording_callback = std::bind(&woeden_monitor::recording_status, this, bag_path.str(), recording_topic, stopped_recording_topic);
     recording_timer_ = this->create_wall_timer(std::chrono::seconds(RECORDING_STATUS_INTERVAL), recording_callback);
 
     while (!client_.is_connected()) {
@@ -115,11 +115,13 @@ public:
       RCLCPP_ERROR(get_logger(), "%s", e.what());
     }
 
-    std::function<void ()> consume_callback = std::bind(&mqtt_alive_publisher::consume_message, this, start_recording_topic, stop_recording_topic, stopped_recording_topic, started_recording_topic, upload_topic, uploaded_topic, bag_path.str());
+    std::function<void ()> consume_callback = std::bind(&woeden_monitor::consume_message, this, start_recording_topic, stop_recording_topic, stopped_recording_topic, started_recording_topic, upload_topic, uploaded_topic, bag_path.str());
     consume_timer_ = this->create_wall_timer(std::chrono::seconds(5), consume_callback);
+
+    std::cout << "Connection to Woeden was successful. Actively monitoring." << std::endl;
   }
 
-  ~mqtt_alive_publisher()
+  ~woeden_monitor()
   {
     client_.disconnect();
   }
@@ -164,23 +166,55 @@ private:
     return executables;
   }
 
+  void update_mounts(std::string mounted_paths_topic)
+  {
+    std::string mounts_output = execute_command("df --output='target','avail','size' -B 1 | tail -n +2 | tr -s ' '");
+    nlohmann::json mounts = parse_mounts(mounts_output);
+    mqtt::message_ptr msg = mqtt::make_message(mounted_paths_topic, mounts.dump().c_str());
+    client_.publish(msg);
+    for (auto& mount : mounts) {
+      std::string path = mount["path"].get<std::string>();
+      long total = mount["total"].get<long>();
+      long avail = mount["available"].get<long>();
+      long remaining = (long)((double)avail - MINIMUM_DRIVE_SPACE_PERCENTAGE * (double)total);
+      auto it = path_space_remaining_.find(path);
+      if (it != path_space_remaining_.end()) {
+        it->second = remaining;
+      } else {
+        path_space_remaining_.insert(std::make_pair(path, remaining));
+      }
+    }
+  }
+
   nlohmann::json parse_mounts(std::string command_output)
   {
     std::istringstream ss(command_output);
     std::string line;
     nlohmann::json mounts;
     while (getline(ss, line)) {
-        auto pos = line.find(" ");
-        std::string path = line.substr(0, pos);
-        long avail = std::stol(line.substr(pos+1, line.length()));
-        struct stat path_stat;
-        stat(path.c_str(), &path_stat);
-        if (access(path.c_str(), W_OK) == 0 && !S_ISREG(path_stat.st_mode)) {
-          nlohmann::json mount;
-          mount["path"] = path;
-          mount["available"] = avail;
-          mounts.push_back(mount);
-        }
+      std::stringstream split(line);
+
+      std::string path;
+      std::getline(split, path, ' ');
+
+      std::string avail_str;
+      std::getline(split, avail_str, ' ');
+      long avail = std::stol(avail_str);
+
+      std::string total_str;
+      std::getline(split, total_str, ' ');
+      long total = std::stol(total_str);
+
+      struct stat path_stat;
+      stat(path.c_str(), &path_stat);
+
+      if (access(path.c_str(), W_OK) == 0 && !S_ISREG(path_stat.st_mode)) {
+        nlohmann::json mount;
+        mount["path"] = path;
+        mount["available"] = avail;
+        mount["total"] = total;
+        mounts.push_back(mount);
+      }
     }
     return mounts;
   }
@@ -320,8 +354,8 @@ private:
       std::string payload = msg->to_string();
       nlohmann::json data = nlohmann::json::parse(payload);
       bag_recording_id_ = std::to_string(data["id"].get<int>());
-      std::string base_path = data["base_path"];
-      current_bag_path_ = base_path + "/woden/bags/" + bag_recording_id_;
+      current_bag_base_path_ = data["base_path"];
+      current_bag_path_ = current_bag_base_path_ + "/woeden/bags/" + bag_recording_id_;
 
       nlohmann::json topics = data["topics"];
       for (auto& topic : topics) {
@@ -397,51 +431,7 @@ private:
       }
     } else if (msg->get_topic() == stop_topic) {
       if (bag_recording_pid_ > 0) {
-        kill(bag_recording_pid_, SIGINT);
-        for (int pid : throttle_pids_) {
-          int pgid = getpgid(pid);
-          killpg(pgid, SIGKILL);
-        }
-        sleep(10);
-
-        // update topic names
-        for (const auto & entry : std::filesystem::directory_iterator(current_bag_path_)) {
-          std::string db_path = entry.path();
-          if (db_path.find(".db3") != std::string::npos) {
-            sqlite3 *db;
-            int rc = sqlite3_open(db_path.c_str(), &db);
-            char *zErrMsg = 0;
-            rc = sqlite3_exec(db, "UPDATE topics SET name=replace(name, '/throttle', '');", sql_callback, 0, &zErrMsg);
-            sqlite3_close(db);
-          }
-        }
-
-        std::uintmax_t size = directory_size(current_bag_path_);
-
-        // remove "/throttle" from metadata.yaml
-        std::ifstream t(current_bag_path_ + "/metadata.yaml");
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string metadata = buffer.str();
-        size_t pos = 0;
-        while((pos = metadata.find("/throttle", pos)) != std::string::npos) {
-          metadata.replace(pos, 9, "");
-        }
-        std::ofstream out(current_bag_path_ + "/metadata.yaml");
-        out << metadata;
-        out.close();
-
-        nlohmann::json message_data;
-        message_data["yaml"] = metadata;
-        message_data["id"] = bag_recording_id_;
-        message_data["size"] = size;
-        try {
-            mqtt::message_ptr msg = mqtt::make_message(stopped_topic, message_data.dump());
-            client_.publish(msg);
-        } catch (const mqtt::exception& exc) {
-            RCLCPP_ERROR(get_logger(), exc.what());
-        }
-        recording_ = false;
+        end_recording(stopped_topic);
       }
     } else if (msg->get_topic() == upload_topic) {
       std::string payload = msg->to_string();
@@ -449,8 +439,7 @@ private:
       std::string base_path = data["base_path"];
       std::string str_id = std::to_string(data["id"].get<int>());
       nlohmann::json urls = data["urls"];
-      int num_args = 4 + urls.size();
-      std::string command = "python3 /woden_monitor/bag_utils/upload.py " + str_id + " " + base_path + " ";
+      std::string command = "python3 /woeden_monitor/bag_utils/upload.py " + str_id + " " + base_path + " ";
       for (auto& json_url : urls) {
         std::string str_url = "\"" + json_url.get<std::string>() + "\"";
         command += str_url + " ";
@@ -466,16 +455,23 @@ private:
     }
   }
 
-  void recording_status(std::string bag_path, std::string started_topic)
+  void recording_status(std::string bag_path, std::string started_topic, std::string stopped_topic)
   {
     if (recording_) {
       try {
+        auto it = path_space_remaining_.find(current_bag_base_path_);
+        if (it->second <= 0) {
+          end_recording(stopped_topic);
+          return;
+        }
+
         std::uintmax_t size = directory_size(current_bag_path_);
         double rate = (size - previous_size_) / RECORDING_STATUS_INTERVAL;
         previous_size_ = size;
         nlohmann::json message_data;
         message_data["size"] = size;
         message_data["rate"] = rate;
+        message_data["eta"] = (double) it->second / rate;
         message_data["id"] = bag_recording_id_;
         mqtt::message_ptr msg = mqtt::make_message(started_topic, message_data.dump());
         client_.publish(msg);
@@ -498,14 +494,65 @@ private:
     return size;
   }
 
+  void end_recording(std::string stopped_topic)
+  {
+    kill(bag_recording_pid_, SIGINT);
+    for (int pid : throttle_pids_) {
+      int pgid = getpgid(pid);
+      killpg(pgid, SIGKILL);
+    }
+    sleep(10);
+
+    // update topic names
+    for (const auto & entry : std::filesystem::directory_iterator(current_bag_path_)) {
+      std::string db_path = entry.path();
+      if (db_path.find(".db3") != std::string::npos) {
+        sqlite3 *db;
+        int rc = sqlite3_open(db_path.c_str(), &db);
+        char *zErrMsg = 0;
+        rc = sqlite3_exec(db, "UPDATE topics SET name=replace(name, '/throttle', '');", sql_callback, 0, &zErrMsg);
+        sqlite3_close(db);
+      }
+    }
+
+    std::uintmax_t size = directory_size(current_bag_path_);
+
+    // remove "/throttle" from metadata.yaml
+    std::ifstream t(current_bag_path_ + "/metadata.yaml");
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    std::string metadata = buffer.str();
+    size_t pos = 0;
+    while((pos = metadata.find("/throttle", pos)) != std::string::npos) {
+      metadata.replace(pos, 9, "");
+    }
+    std::ofstream out(current_bag_path_ + "/metadata.yaml");
+    out << metadata;
+    out.close();
+
+    nlohmann::json message_data;
+    message_data["yaml"] = metadata;
+    message_data["id"] = bag_recording_id_;
+    message_data["size"] = size;
+    try {
+        mqtt::message_ptr msg = mqtt::make_message(stopped_topic, message_data.dump());
+        client_.publish(msg);
+    } catch (const mqtt::exception& exc) {
+        RCLCPP_ERROR(get_logger(), exc.what());
+    }
+    recording_ = false;
+  }
+
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::TimerBase::SharedPtr nodes_timer_;
   rclcpp::TimerBase::SharedPtr topic_discovery_timer_;
   rclcpp::TimerBase::SharedPtr topics_timer_;
   rclcpp::TimerBase::SharedPtr consume_timer_;
   rclcpp::TimerBase::SharedPtr recording_timer_;
+  rclcpp::TimerBase::SharedPtr mounted_paths_timer_;
   std::map<std::string, rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
   std::map<std::string, subscription*> subscription_data_;
+  std::map<std::string, long> path_space_remaining_;
   mqtt::async_client client_;
   std::vector<std::string> all_nodes_;
   int bag_recording_pid_;
@@ -515,17 +562,19 @@ private:
   std::string current_bag_path_;
   std::string previous_topics_;
   std::string previous_nodes_;
+  std::string current_bag_base_path_;
   std::uintmax_t previous_size_ = 0;
   bool recording_ = false;
 
   const int SAMPLING_INTERVAL = 15;
   const int RECORDING_STATUS_INTERVAL = 1;
+  const double MINIMUM_DRIVE_SPACE_PERCENTAGE = 0.03;
 };
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<mqtt_alive_publisher>());
+  rclcpp::spin(std::make_shared<woeden_monitor>());
   rclcpp::shutdown();
   return 0;
 }

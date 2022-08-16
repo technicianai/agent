@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(woden_monitor)
+project(woeden_monitor)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -28,11 +28,11 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package (SQLite3 REQUIRED)
 
-add_executable(alive src/mqtt_alive_publisher.cpp)
-ament_target_dependencies(alive rclcpp std_msgs)
-target_link_libraries(alive paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
+add_executable(woeden_monitor src/woeden_monitor.cpp)
+ament_target_dependencies(woeden_monitor rclcpp std_msgs)
+target_link_libraries(woeden_monitor paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
 
-install(TARGETS alive
+install(TARGETS woeden_monitor
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

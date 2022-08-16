@@ -1,4 +1,4 @@
 #!/bin/bash
 
-. /woden-monitor/bag_utils/env/bin/activate
-python3 /woden-monitor/bag_utils/upload.py
+. /woeden-monitor/bag_utils/env/bin/activate
+python3 /woeden-monitor/bag_utils/upload.py

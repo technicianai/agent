@@ -8,9 +8,9 @@ RUN cd downloads && \
     make && \
     make install
 
-WORKDIR /woden_monitor
+WORKDIR /woeden_monitor
 
-COPY . /woden_monitor/
+COPY . /woeden_monitor/
 RUN . /opt/ros/humble/setup.bash && colcon build
 
 ENV HOME /

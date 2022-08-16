@@ -2,8 +2,8 @@ version: '3'
 
 services:
   woeden_monitor:
-    build:
-      context: .
+    image: public.ecr.aws/z4j3m5y0/monitor
     network_mode: host
+    restart: always
     volumes:
       - ~/woeden:/woeden

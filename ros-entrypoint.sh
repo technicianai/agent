@@ -3,4 +3,10 @@
 . /opt/ros/humble/setup.bash
 . install/setup.bash
 
-ros2 launch launch/launch.py
+if [[ ! -f "/woeden/id" ]]; then
+    echo "We were unable to identify your robot. Did you run the setup script provided at http://woeden.com/?"
+    exit 1
+fi
+mkdir -p /woeden/bags
+
+ros2 run woeden_monitor woeden_monitor

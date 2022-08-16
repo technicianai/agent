@@ -66,7 +66,7 @@ REFRESH = resp['refresh']
 print("Searching for bags that have not been uploaded...")
 
 bag_paths = {}
-paths_to_search = [args.dir, f'{args.dir}/woden', f'{args.dir}/woden/bags']
+paths_to_search = [args.dir, f'{args.dir}/woeden', f'{args.dir}/woeden/bags']
 for path in paths_to_search:
     for dir in os.listdir(path):
         if is_bag(f'{path}/{dir}'):
