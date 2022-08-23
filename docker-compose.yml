@@ -5,5 +5,7 @@ services:
     build:
       context: .
     network_mode: host
+    # environment:
+    #   - HOST=localhost
     volumes:
       - ~/woeden:/woeden

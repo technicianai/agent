@@ -36,7 +36,7 @@ static int sql_callback(void *NotUsed, int argc, char **argv, char **azColName) 
 class woeden_monitor : public rclcpp::Node
 {
 public:
-  woeden_monitor() : Node("woeden_monitor"), client_("tcp://localhost:1883", "paho-cpp-data-publish", nullptr)
+  woeden_monitor(std::string host) : Node("woeden_monitor")
   {
     std::stringstream id_path;
     id_path << getenv("HOME");
@@ -45,6 +45,8 @@ public:
     id_file.open(id_path.str());
     int id;
     id_file >> id;
+
+    client_ = std::make_shared<mqtt::async_client>(host, std::to_string(id));
 
     std::string execs_output = execute_command("ros2 pkg executables");
     nlohmann::json execs = parse_executables(execs_output);
@@ -79,11 +81,11 @@ public:
     mqtt::properties props {
       { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 },
     };
-    client_.connect(connect_options);
+    client_->connect(connect_options);
 
     sleep(5);
     mqtt::message_ptr msg = mqtt::make_message(config_topic, config.dump().c_str());
-    client_.publish(msg);
+    client_->publish(msg);
     
     std::function<void ()> alive_callback = std::bind(&woeden_monitor::timer_callback, this, alive_topic);
     timer_ = this->create_wall_timer(std::chrono::seconds(15), alive_callback);
@@ -103,14 +105,14 @@ public:
     std::function<void ()> recording_callback = std::bind(&woeden_monitor::recording_status, this, bag_path.str(), recording_topic, stopped_recording_topic);
     recording_timer_ = this->create_wall_timer(std::chrono::seconds(RECORDING_STATUS_INTERVAL), recording_callback);
 
-    while (!client_.is_connected()) {
+    while (!client_->is_connected()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
     try {
-      client_.subscribe(start_recording_topic, 0, subOpts, props);
-      client_.subscribe(stop_recording_topic, 0, subOpts, props);
-      client_.subscribe(upload_topic, 0, subOpts, props);
-      client_.start_consuming();
+      client_->subscribe(start_recording_topic, 0, subOpts, props);
+      client_->subscribe(stop_recording_topic, 0, subOpts, props);
+      client_->subscribe(upload_topic, 0, subOpts, props);
+      client_->start_consuming();
     } catch (mqtt::exception& e) {
       RCLCPP_ERROR(get_logger(), "%s", e.what());
     }
@@ -123,7 +125,8 @@ public:
 
   ~woeden_monitor()
   {
-    client_.disconnect();
+    client_->disconnect();
+    client_.reset();
   }
 
 private:
@@ -132,7 +135,7 @@ private:
     try {
         const char* payload = "1";
         mqtt::message_ptr msg = mqtt::make_message(topic, payload);
-        client_.publish(msg);
+        client_->publish(msg);
     } catch (const mqtt::exception& exc) {
         RCLCPP_ERROR(get_logger(), exc.what());
     }
@@ -171,7 +174,7 @@ private:
     std::string mounts_output = execute_command("df --output='target','avail','size' -B 1 | tail -n +2 | tr -s ' '");
     nlohmann::json mounts = parse_mounts(mounts_output);
     mqtt::message_ptr msg = mqtt::make_message(mounted_paths_topic, mounts.dump().c_str());
-    client_.publish(msg);
+    client_->publish(msg);
     for (auto& mount : mounts) {
       std::string path = mount["path"].get<std::string>();
       long total = mount["total"].get<long>();
@@ -266,7 +269,7 @@ private:
     if (previous_nodes_.empty() || previous_nodes_ != payload) {
       try {
           mqtt::message_ptr msg = mqtt::make_message(topic, payload.c_str());
-          client_.publish(msg);
+          client_->publish(msg);
       } catch (const mqtt::exception& exc) {
           RCLCPP_ERROR(get_logger(), exc.what());
       }
@@ -338,7 +341,7 @@ private:
     if (previous_topics_.empty() || previous_topics_ != payload) {
       try {
         mqtt::message_ptr msg = mqtt::make_message(mqtt_topic, payload.c_str());
-        client_.publish(msg);
+        client_->publish(msg);
       } catch (const mqtt::exception& exc) {
           RCLCPP_ERROR(get_logger(), exc.what());
       }
@@ -349,7 +352,7 @@ private:
   void consume_message(std::string start_topic, std::string stop_topic, std::string stopped_topic, std::string started_topic, std::string upload_topic, std::string uploaded_topic, std::string bag_path)
   {
     mqtt::const_message_ptr msg;
-    if (!client_.try_consume_message(&msg)) return;
+    if (!client_->try_consume_message(&msg)) return;
     if (msg->get_topic() == start_topic) {
       std::string payload = msg->to_string();
       nlohmann::json data = nlohmann::json::parse(payload);
@@ -424,7 +427,7 @@ private:
             nlohmann::json message_data;
             message_data["id"] = bag_recording_id_;
             mqtt::message_ptr msg = mqtt::make_message(started_topic, message_data.dump());
-            client_.publish(msg);
+            client_->publish(msg);
         } catch (const mqtt::exception& exc) {
             RCLCPP_ERROR(get_logger(), exc.what());
         }
@@ -448,7 +451,7 @@ private:
       auto f = [command, uploaded_topic, this]() {
         std::string result = execute_command(command.c_str());
         mqtt::message_ptr msg = mqtt::make_message(uploaded_topic, result.c_str());
-        this->client_.publish(msg);
+        client_->publish(msg);
       };
       std::thread thread_object(f);
       thread_object.detach();
@@ -474,7 +477,7 @@ private:
         message_data["eta"] = (double) it->second / rate;
         message_data["id"] = bag_recording_id_;
         mqtt::message_ptr msg = mqtt::make_message(started_topic, message_data.dump());
-        client_.publish(msg);
+        client_->publish(msg);
       } catch(std::filesystem::filesystem_error& e) {
         RCLCPP_ERROR(get_logger(), e.what());
       } catch (mqtt::exception& e) {
@@ -536,7 +539,7 @@ private:
     message_data["size"] = size;
     try {
         mqtt::message_ptr msg = mqtt::make_message(stopped_topic, message_data.dump());
-        client_.publish(msg);
+        client_->publish(msg);
     } catch (const mqtt::exception& exc) {
         RCLCPP_ERROR(get_logger(), exc.what());
     }
@@ -553,7 +556,7 @@ private:
   std::map<std::string, rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
   std::map<std::string, subscription*> subscription_data_;
   std::map<std::string, long> path_space_remaining_;
-  mqtt::async_client client_;
+  mqtt::async_client_ptr client_;
   std::vector<std::string> all_nodes_;
   int bag_recording_pid_;
   int bag_upload_pid_;
@@ -574,7 +577,8 @@ private:
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<woeden_monitor>());
+  std::string host = getenv("HOST");
+  rclcpp::spin(std::make_shared<woeden_monitor>(host));
   rclcpp::shutdown();
   return 0;
 }
