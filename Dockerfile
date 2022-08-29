@@ -22,6 +22,6 @@ RUN . /opt/ros/humble/setup.bash && colcon build
 ENV HOME /
 ENV HOST 3.140.168.45
 
-RUN rm -rf /woeden_monitor/woeden_monitor/src/
+RUN rm -rf /woeden_monitor/src/
 
 CMD ["./ros-entrypoint.sh"]

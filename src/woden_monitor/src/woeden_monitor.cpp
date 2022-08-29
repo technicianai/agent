@@ -309,25 +309,11 @@ private:
       }
       if (!known) {
         subscription * config = new subscription{.name = it1->first, .types = it1->second, .message_count = 0};
-
-        rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
-        for (std::string type : it1->second) {
-          if (type.compare("rcl_interfaces/msg/ParameterEvent") == 0) {
-            std::function<void (rcl_interfaces::msg::ParameterEvent::SharedPtr)> func = 
-              [config](const rcl_interfaces::msg::ParameterEvent::SharedPtr msg) -> void { config->message_count++; };
-            sub = this->create_subscription<rcl_interfaces::msg::ParameterEvent>(it1->first, 10, func);
-            break;
-          } else if (type.compare("std_msgs/msg/String") == 0) {
-            std::function<void (std_msgs::msg::String::SharedPtr)> func = 
-              [config](const std_msgs::msg::String::SharedPtr msg) -> void { config->message_count++; };
-            sub = this->create_subscription<std_msgs::msg::String>(it1->first, 10, func);
-            break;
-          }
-        }
+        std::function<void (std::shared_ptr<rclcpp::SerializedMessage>)> func = 
+            [config](const std::shared_ptr<rclcpp::SerializedMessage>) -> void { config->message_count++; };
+        rclcpp::SubscriptionBase::SharedPtr sub = this->create_generic_subscription(it1->first, it1->second[0], 10, func);
         subscription_data_.insert(std::make_pair(it1->first, config));
-        if (sub != nullptr) {
-          subscriptions_.insert(std::make_pair(it1->first, sub));
-        }
+        subscriptions_.insert(std::make_pair(it1->first, sub));
       }
     }
   }
