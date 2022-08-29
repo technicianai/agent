@@ -38,21 +38,23 @@ class woeden_monitor : public rclcpp::Node
 public:
   woeden_monitor(std::string host) : Node("woeden_monitor")
   {
-    std::stringstream id_path;
-    id_path << getenv("HOME");
-    id_path << "/woeden/id";
-    std::ifstream id_file;
-    id_file.open(id_path.str());
-    int id;
-    id_file >> id;
+    std::stringstream config_path;
+    config_path << getenv("HOME");
+    config_path << "/woeden/config";
+    std::ifstream config_file;
+    config_file.open(config_path.str());
+    nlohmann::json config = nlohmann::json::parse(config_file);
+
+    int id = config["id"].get<int>();
+    std::string password = config["password"].get<std::string>();
 
     client_ = std::make_shared<mqtt::async_client>(host, std::to_string(id));
 
     std::string execs_output = execute_command("ros2 pkg executables");
     nlohmann::json execs = parse_executables(execs_output);
 
-    nlohmann::json config;
-    config["executables"] = execs;
+    nlohmann::json robot_config;
+    robot_config["executables"] = execs;
 
     std::stringstream bag_path;
     bag_path << getenv("HOME");
@@ -72,10 +74,18 @@ public:
     std::string uploading_topic = mqtt_topic(id, "uploading");
     std::string uploaded_topic = mqtt_topic(id, "uploaded");
 
+    // auto sslopts = mqtt::ssl_options_builder()
+    //   .trust_store("/woeden_monitor/certs/ca.crt")
+    //   .ssl_version(MQTT_SSL_VERSION_TLS_1_2)
+    //   .finalize();
+
     auto connect_options = mqtt::connect_options_builder() 
+        .user_name(std::to_string(id))
+  			.password(password)
         .keep_alive_interval(std::chrono::seconds(20))
         .automatic_reconnect(std::chrono::seconds(2), std::chrono::seconds(30))
         .clean_session()
+        // .ssl(std::move(sslopts))
         .finalize();
     mqtt::subscribe_options subOpts;
     mqtt::properties props {
@@ -84,7 +94,7 @@ public:
     client_->connect(connect_options);
 
     sleep(5);
-    mqtt::message_ptr msg = mqtt::make_message(config_topic, config.dump().c_str());
+    mqtt::message_ptr msg = mqtt::make_message(config_topic, robot_config.dump().c_str());
     client_->publish(msg);
     
     std::function<void ()> alive_callback = std::bind(&woeden_monitor::timer_callback, this, alive_topic);

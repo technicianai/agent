@@ -26,10 +26,11 @@ find_package(ament_cmake REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package (SQLite3 REQUIRED)
+find_package(SQLite3 REQUIRED)
 
 add_executable(woeden_monitor src/woeden_monitor.cpp)
 ament_target_dependencies(woeden_monitor rclcpp std_msgs)
+#target_link_libraries(woeden_monitor paho-mqttpp3 paho-mqtt3as nlohmann_json::nlohmann_json SQLite::SQLite3 OpenSSL::SSL)
 target_link_libraries(woeden_monitor paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
 
 install(TARGETS woeden_monitor

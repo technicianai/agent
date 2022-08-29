@@ -1,12 +1,18 @@
 FROM ros:humble
 SHELL ["/bin/bash", "-c"]
 
+RUN apt-get update && apt-get install openssl
+
 RUN mkdir downloads
 RUN cd downloads && \
     git clone https://github.com/eclipse/paho.mqtt.c.git && \
     cd paho.mqtt.c && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DPAHO_WITH_SSL=TRUE && \
     make && \
-    make install
+    make install && \
+    ldconfig
 
 WORKDIR /woeden_monitor
 

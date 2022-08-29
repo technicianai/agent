@@ -5,7 +5,7 @@ services:
     build:
       context: .
     network_mode: host
-    # environment:
-    #   - HOST=localhost
+    environment:
+      - HOST=3.140.168.45 #:8883
     volumes:
       - ~/woeden:/woeden
