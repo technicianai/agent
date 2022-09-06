@@ -12,14 +12,14 @@ def is_bag(path):
 
 def refresh_access(refresh):
     data = urllib.parse.urlencode({ "refresh": refresh }).encode()
-    req =  urllib.request.Request("http://localhost:8000/auth/refresh/", data=data)
+    req =  urllib.request.Request("https://api.woeden.com/auth/refresh/", data=data)
     resp = urllib.request.urlopen(req)
     resp = json.loads(resp.read())
     return resp['access']
 
 def upload_bag(id, dir, access):
     data = urllib.parse.urlencode({ 'manual': True }).encode()
-    req =  urllib.request.Request(f"http://localhost:8000/bag/{id}/upload/", data=data)
+    req =  urllib.request.Request(f"https://api.woeden.com/bag/{id}/upload/", data=data)
     req.add_header('Authorization', f'Bearer {access}')
     resp = urllib.request.urlopen(req)
     urls = json.loads(resp.read())['urls']
@@ -39,7 +39,7 @@ def upload_bag(id, dir, access):
 def mark_uploaded(id, parts, access):
     # parts = urllib.parse.urlencode(parts).encode()
     data = urllib.parse.urlencode({ "parts": json.dumps(parts) }).encode()
-    req =  urllib.request.Request(f"http://localhost:8000/bag/{id}/uploaded/", data=data)
+    req =  urllib.request.Request(f"https://api.woeden.com/bag/{id}/uploaded/", data=data)
     req.add_header('Authorization', f'Bearer {access}')
     urllib.request.urlopen(req)
 
@@ -54,7 +54,7 @@ password = getpass()
 print("Logging in...")
 
 data = urllib.parse.urlencode({ "username": email, "password": password }).encode()
-req =  urllib.request.Request("http://localhost:8000/auth/login/", data=data)
+req =  urllib.request.Request("https://api.woeden.com/auth/login/", data=data)
 resp = urllib.request.urlopen(req)
 resp = json.loads(resp.read())
 
@@ -78,7 +78,7 @@ if len(bag_paths.keys()) == 0:
     print("Could not find bags. Please verify the device is mounted at the specified directory.")
     exit()
 
-bags_req =  urllib.request.Request("http://localhost:8000/bag/")
+bags_req =  urllib.request.Request("https://api.woeden.com/bag/")
 bags_req.add_header('Authorization', f'Bearer {ACCESS}')
 bags_resp = urllib.request.urlopen(bags_req)
 bags_to_upload = {}
