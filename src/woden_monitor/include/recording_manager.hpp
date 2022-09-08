@@ -27,6 +27,8 @@ public:
   bool is_recording();
   uintmax_t bag_size();
 
+  void upload(uint32_t bag_id, string base_path, vector<string> urls);
+
 private:
   void throttle_cmd(string topic, double frequency);
   void record_cmd(string bag_path, vector<recording_topic> recording_topics);

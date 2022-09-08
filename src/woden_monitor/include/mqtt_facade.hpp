@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -34,14 +35,23 @@ public:
 
   void publish_uploaded(string data);
 
-  mqtt::async_client_ptr client_;
+  void set_record_callback(function<void (uint32_t, string, vector<recording_topic>)> cb);
+  void set_stop_callback(function<void ()> cb);
+  void set_upload_callback(function<void (uint32_t, string, vector<string>)> cb);
 
 private:
+  void dispatch(mqtt::const_message_ptr msg);
   void publish(string topic, nlohmann::json payload);
   void publish(string topic, const char* payload);
   string mqtt_topic(string suffix);
 
+  mqtt::async_client_ptr client_;
   string robot_id_str_;
+  string password_;
+
+  function<void (uint32_t, string, vector<recording_topic>)> on_record_;
+  function<void ()> on_stop_;
+  function<void (uint32_t, string, vector<string>)> on_upload_;
 };
 }
 
