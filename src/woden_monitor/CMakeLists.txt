@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
-project(woeden_monitor)
+project(woeden_agent)
 
-# Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
@@ -28,8 +27,8 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(SQLite3 REQUIRED)
 
-add_executable(woeden_monitor
-  src/woeden_monitor.cpp
+add_executable(woeden_agent
+  src/main.cpp
   src/recording_manager.cpp
   src/disk_monitor.cpp
   src/recording_trigger.cpp
@@ -38,14 +37,12 @@ add_executable(woeden_monitor
   src/utils.cpp
   src/config.cpp
 )
-ament_target_dependencies(woeden_monitor rclcpp std_msgs)
-#target_link_libraries(woeden_monitor paho-mqttpp3 paho-mqtt3as nlohmann_json::nlohmann_json SQLite::SQLite3 OpenSSL::SSL)
-target_link_libraries(woeden_monitor paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
+ament_target_dependencies(woeden_agent rclcpp std_msgs)
+target_link_libraries(woeden_agent paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
+target_include_directories(woeden_agent PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_include_directories(woeden_monitor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-# set(SOURCES woeden_monitor.cpp recording_manager.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/recording_manager.hpp)
-
-install(TARGETS woeden_monitor
-  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS woeden_agent
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()

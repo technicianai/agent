@@ -10,23 +10,21 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 namespace woeden
 {
 class disk_monitor : public rclcpp::Node
 {
 public:
-  disk_monitor(shared_ptr<mqtt_facade> facade);
+  disk_monitor(std::shared_ptr<mqtt_facade> facade);
 
-  vector<mount> get_mounts();
-  long remaining(string path);
+  std::vector<mount> get_mounts();
+  long remaining(std::string path);
 
 private:
   void sample();
 
-  vector<mount> mounts_;
-  shared_ptr<mqtt_facade> facade_;
+  std::vector<mount> mounts_;
+  std::shared_ptr<mqtt_facade> facade_;
   rclcpp::TimerBase::SharedPtr timer_;
 
   const uint8_t SAMPLING_INTERVAL = 5;

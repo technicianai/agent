@@ -3,13 +3,11 @@
 
 #include <string>
 
-using namespace std;
-
 namespace woeden
 {
 struct recording_topic
 {
-  string name;
+  std::string name;
   bool throttle;
   double frequency;
 };
@@ -23,7 +21,7 @@ struct recording_status
 
 struct recording_metadata
 {
-  string metadata;
+  std::string metadata;
   uintmax_t size;
 };
 }

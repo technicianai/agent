@@ -3,13 +3,11 @@
 
 #include <string>
 
-using namespace std;
-
 namespace woeden
 {
 struct mount
 {
-  string path;
+  std::string path;
   long available;
   long total;
 };

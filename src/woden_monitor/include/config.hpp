@@ -8,26 +8,24 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 namespace woeden
 {
 class config
 {
 public:
-  config(string home_dir);
+  config(std::string home_dir);
 
   uint32_t get_id();
-  string get_password();
-  vector<recording_trigger> get_recording_triggers();
+  std::string get_password();
+  std::vector<recording_trigger> get_recording_triggers();
 
   void add_recording_trigger(recording_trigger rt);
 
 private:
-  nlohmann::json load(string path);
-  void save(nlohmann::json contents, string path);
+  nlohmann::json load(std::string path);
+  void save(nlohmann::json contents, std::string path);
 
-  string path_;
+  std::string path_;
   nlohmann::json contents_;
 };
 }

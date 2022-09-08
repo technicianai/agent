@@ -4,31 +4,29 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 namespace woeden
 {
 struct package
 {
-  string name;
-  vector<string> executables;
+  std::string name;
+  std::vector<std::string> executables;
 };
 
 struct robot_config
 {
-  vector<package> packages;
+  std::vector<package> packages;
 };
 
 struct node
 {
-  string name;
-  string status;
+  std::string name;
+  std::string status;
 };
 
 struct topic
 {
-  string name;
-  string type;
+  std::string name;
+  std::string type;
   double frequency;
   uint32_t message_count;
   //vector<recording_trigger> triggers;

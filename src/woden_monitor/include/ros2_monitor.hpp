@@ -11,14 +11,12 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 namespace woeden
 {
 class ros2_monitor : public rclcpp::Node
 {
 public:
-  ros2_monitor(shared_ptr<mqtt_facade> facade);
+  ros2_monitor(std::shared_ptr<mqtt_facade> facade);
 
 private:
   void discover_packages();
@@ -26,12 +24,12 @@ private:
   void discover_topics();
   void sample_topic_freqs();
 
-  shared_ptr<mqtt_facade> facade_;
+  std::shared_ptr<mqtt_facade> facade_;
 
-  vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
+  std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
 
-  vector<node> nodes_;
-  vector<topic*> topics_;
+  std::vector<node> nodes_;
+  std::vector<topic*> topics_;
   //vector<recording_trigger> triggers_;
 
   rclcpp::TimerBase::SharedPtr alive_timer_;

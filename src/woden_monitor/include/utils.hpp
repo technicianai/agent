@@ -9,11 +9,9 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 namespace woeden
 {
-string blocking_cmd(const char* cmd);
+std::string blocking_cmd(const char* cmd);
 }
 
 #endif

@@ -13,32 +13,30 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-using namespace std;
-
 namespace woeden
 {
 class recording_manager : public rclcpp::Node
 {
 public:
-  recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade);
+  recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade);
 
-  void start(uint32_t bag_id, string base_path, vector<recording_topic> recording_topics);
+  void start(uint32_t bag_id, std::string base_path, std::vector<recording_topic> recording_topics);
   void stop();
   bool is_recording();
   uintmax_t bag_size();
 
-  void upload(uint32_t bag_id, string base_path, vector<string> urls);
+  void upload(uint32_t bag_id, std::string base_path, std::vector<std::string> urls);
 
 private:
-  void throttle_cmd(string topic, double frequency);
-  void record_cmd(string bag_path, vector<recording_topic> recording_topics);
+  void throttle_cmd(std::string topic, double frequency);
+  void record_cmd(std::string bag_path, std::vector<recording_topic> recording_topics);
 
   void remote_throttle_from_db(const char* db3_path);
-  string load_metadata(string metadata_path);
-  string remote_throttle_from_metadata(string metadata);
-  void update_metadata(string metadata_path, string metadata);
+  std::string load_metadata(std::string metadata_path);
+  std::string remote_throttle_from_metadata(std::string metadata);
+  void update_metadata(std::string metadata_path, std::string metadata);
 
-  uintmax_t directory_size(string path);
+  uintmax_t directory_size(std::string path);
 
   void status_check();
 
@@ -46,10 +44,10 @@ private:
 
   pid_t recording_pid_;
   pid_t upload_pid_;
-  vector<pid_t> throttle_pids_;
+  std::vector<pid_t> throttle_pids_;
 
-  string base_path_;
-  string bag_path_;
+  std::string base_path_;
+  std::string bag_path_;
 
   uint32_t bag_id_;
 
@@ -58,8 +56,8 @@ private:
 
   rclcpp::TimerBase::SharedPtr timer_;
 
-  shared_ptr<disk_monitor> dm_;
-  shared_ptr<mqtt_facade> facade_;
+  std::shared_ptr<disk_monitor> dm_;
+  std::shared_ptr<mqtt_facade> facade_;
 
   const int SAMPLING_INTERVAL = 1;
 };
