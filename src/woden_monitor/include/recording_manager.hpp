@@ -2,6 +2,8 @@
 #define RECORDING_MANAGER_H
 
 #include "disk_monitor.hpp"
+#include "mqtt_facade.hpp"
+#include "recording_dto.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include <functional>
@@ -15,30 +17,10 @@ using namespace std;
 
 namespace woeden
 {
-struct recording_topic
-{
-  string name;
-  bool throttle;
-  double frequency;
-};
-
-struct recording_status
-{
-  double eta;
-  double rate;
-  uintmax_t size;
-};
-
-struct recording_metadata
-{
-  string metadata;
-  uintmax_t size;
-};
-
 class recording_manager : public rclcpp::Node
 {
 public:
-  recording_manager(shared_ptr<disk_monitor> dm, mqtt_facade facade);
+  recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade);
 
   void start(uint32_t bag_id, string base_path, vector<recording_topic> recording_topics);
   void stop();
@@ -75,7 +57,7 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
 
   shared_ptr<disk_monitor> dm_;
-  mqtt_facade facade_;
+  shared_ptr<mqtt_facade> facade_;
 
   const int SAMPLING_INTERVAL = 1;
 };

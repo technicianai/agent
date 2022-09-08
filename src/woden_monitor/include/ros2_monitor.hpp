@@ -2,6 +2,7 @@
 #define ROS2_MONITOR_H
 
 #include "mqtt_facade.hpp"
+#include "ros2_dto.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -14,36 +15,10 @@ using namespace std;
 
 namespace woeden
 {
-struct package
-{
-  string name;
-  vector<string> executables;
-};
-
-struct robot_config
-{
-  vector<package> packages;
-};
-
-struct node
-{
-  string name;
-  string status;
-};
-
-struct topic
-{
-  string name;
-  string type;
-  double frequency;
-  uint32_t message_count;
-  //vector<recording_trigger> triggers;
-};
-
 class ros2_monitor : public rclcpp::Node
 {
 public:
-  ros2_monitor(mqtt_facade facade);
+  ros2_monitor(shared_ptr<mqtt_facade> facade);
 
 private:
   void discover_packages();
@@ -51,7 +26,7 @@ private:
   void discover_topics();
   void sample_topic_freqs();
 
-  mqtt_facade facade_;
+  shared_ptr<mqtt_facade> facade_;
 
   vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
 

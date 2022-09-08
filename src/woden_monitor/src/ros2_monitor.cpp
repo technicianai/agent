@@ -8,11 +8,11 @@ using namespace std;
 
 namespace woeden
 {
-ros2_monitor::ros2_monitor(mqtt_facade facade) : Node("ros2_monitor"), facade_(facade)
+ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade) : Node("woeden_ros2_monitor"), facade_(facade)
 {
   discover_packages();
 
-  function<void ()> alive_cb = bind(&mqtt_facade::publish_alive, &facade_);
+  function<void ()> alive_cb = bind(&mqtt_facade::publish_alive, facade_);
   alive_timer_ = this->create_wall_timer(chrono::seconds(15), alive_cb);
 
   function<void ()> nodes_cb = bind(&ros2_monitor::discover_nodes, this);
@@ -51,7 +51,7 @@ void ros2_monitor::discover_packages()
       });
     }
   }
-  facade_.publish_robot_config(rc);
+  facade_->publish_robot_config(rc);
 }
 
 void ros2_monitor::discover_nodes()
@@ -85,7 +85,7 @@ void ros2_monitor::discover_nodes()
     }
   }
 
-  facade_.publish_nodes(nodes_);
+  facade_->publish_nodes(nodes_);
 }
 
 void ros2_monitor::discover_topics()
@@ -123,7 +123,7 @@ void ros2_monitor::sample_topic_freqs()
     t->frequency = frequency;
     data.push_back(*t);
   }
-  facade_.publish_topics(data);
+  facade_->publish_topics(data);
 }
 }
 

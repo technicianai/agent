@@ -12,16 +12,7 @@ using namespace std;
 
 namespace woeden
 {
-nlohmann::json mount::to_json()
-{
-  nlohmann::json mount_json;
-  mount_json["path"] = path;
-  mount_json["available"] = available;
-  mount_json["total"] = total;
-  return mount_json;
-}
-
-disk_monitor::disk_monitor(mqtt_facade facade) : Node("disk_monitor"), facade_(facade)
+disk_monitor::disk_monitor(shared_ptr<mqtt_facade> facade) : Node("woeden_disk_monitor"), facade_(facade)
 {
   function<void ()> sample = bind(&disk_monitor::sample, this);
   timer_ = create_wall_timer(chrono::seconds(SAMPLING_INTERVAL), sample);
@@ -77,6 +68,6 @@ void disk_monitor::sample()
   }
 
   mounts_ = mounts;
-  facade_.publish_mounted_paths(mounts_);
+  facade_->publish_mounted_paths(mounts_);
 }
 }

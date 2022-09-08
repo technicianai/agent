@@ -1,9 +1,9 @@
 #ifndef MQTT_FACADE_H
 #define MQTT_FACADE_H
 
-#include "disk_monitor.hpp"
-#include "recording_manager.hpp"
-#include "ros2_monitor.hpp"
+#include "disk_dto.hpp"
+#include "recording_dto.hpp"
+#include "ros2_dto.hpp"
 #include "mqtt/async_client.h"
 
 #include <nlohmann/json.hpp>
@@ -39,7 +39,7 @@ public:
 private:
   void publish(string topic, nlohmann::json payload);
   void publish(string topic, const char* payload);
-  void mqtt_topic(string suffix);
+  string mqtt_topic(string suffix);
 
   string robot_id_str_;
 };

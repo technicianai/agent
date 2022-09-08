@@ -25,6 +25,7 @@
 #include "disk_monitor.hpp"
 #include "recording_manager.hpp"
 #include "recording_trigger.hpp"
+#include "recording_dto.hpp"
 #include "utils.hpp"
 #include "config.hpp"
 #include "mqtt_facade.hpp"
@@ -39,7 +40,6 @@ public:
   {
     // triggers_ = c_.get_recording_triggers();
     rm_ = rm;
-    dm_ = dm;
     robot_id_str_ = std::to_string(robot_id);
     sleep(5);
     std::function<void ()> consume_callback = std::bind(
@@ -54,7 +54,7 @@ public:
   }
 
 private:
-  void mqtt_topic(string suffix)
+  std::string mqtt_topic(string suffix)
   {
     return "/" + robot_id_str_ + "/" + suffix;
   }
@@ -90,6 +90,7 @@ private:
       for (auto& url : data["urls"]) {
         urls.push_back(url.get<std::string>());
       }
+      std::string uploaded_topic = mqtt_topic("uploaded");
       upload_bag(bag_id, base_path, urls, [&, uploaded_topic](std::string output) -> void {
         mqtt::message_ptr msg = mqtt::make_message(uploaded_topic, output.c_str());
         client_->publish(msg);
@@ -119,12 +120,12 @@ int main(int argc, char * argv[])
 
   config c(home);
 
-  mqtt_facade facade(host, c.get_id(), c.get_password());
+  shared_ptr<mqtt_facade> facade = make_shared<mqtt_facade>(host, c.get_id(), c.get_password());
 
   auto dm = std::make_shared<disk_monitor>(facade);
   auto rm = std::make_shared<recording_manager>(dm, facade);
   auto r2m = std::make_shared<ros2_monitor>(facade);
-  auto wm = std::make_shared<woeden_monitor>(host, c.get_id(), rm, facade.client_);
+  auto wm = std::make_shared<woeden_monitor>(host, c.get_id(), rm, facade->client_);
 
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(dm);

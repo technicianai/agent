@@ -1,6 +1,9 @@
 #include "mqtt_facade.hpp"
+#include "ros2_monitor.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include <vector>
 
 using namespace std;
 
@@ -10,7 +13,6 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
 {
   robot_id_str_ = std::to_string(robot_id);
   client_ = make_shared<mqtt::async_client>(host, robot_id_str_);
-
   // auto sslopts = mqtt::ssl_options_builder()
   //   .trust_store("/woeden_monitor/certs/ca.crt")
   //   .ssl_version(MQTT_SSL_VERSION_TLS_1_2)
@@ -24,29 +26,27 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
       .clean_session()
       // .ssl(std::move(sslopts))
       .finalize();
-
   mqtt::subscribe_options subOpts;
   mqtt::properties props {
     { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 },
   };
-  client_->connect(connect_options);
-
-  while (!client_->is_connected()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-  }
+  mqtt::token_ptr token_conn = client_->connect(connect_options);
+  token_conn->wait();
   try {
     client_->subscribe(mqtt_topic("record"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("stop"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("upload"), 0, subOpts, props);
     //client_->subscribe(new_trigger_topic, 0, subOpts, props);
     client_->start_consuming();
-  } catch (mqtt::exception& e) { }
+  } catch (mqtt::exception& e) { 
+    cout << e.what() << endl; 
+  }
 }
 
-void mqtt_facade::~mqtt_facade()
+mqtt_facade::~mqtt_facade()
 {
   client_->disconnect();
-  client_->reset();
+  client_.reset();
 }
 
 void mqtt_facade::publish_alive()
@@ -96,8 +96,12 @@ void mqtt_facade::publish_topics(vector<topic> topics)
 void mqtt_facade::publish_mounted_paths(vector<mount> mounts)
 {
   nlohmann::json mounts_json;
-  for (mount & mnt : mounts_) {
-    mounts_json.push_back(mnt.to_json());
+  for (mount & mnt : mounts) {
+    nlohmann::json mount_json;
+    mount_json["path"] = mnt.path;
+    mount_json["available"] = mnt.available;
+    mount_json["total"] = mnt.total;
+    mounts_json.push_back(mount_json);
   }
   publish("mounted_paths", mounts_json);
 }
@@ -140,11 +144,15 @@ void mqtt_facade::publish(string topic, nlohmann::json payload)
 
 void mqtt_facade::publish(string topic, const char* payload)
 {
+  try {
   mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload);
   client_->publish(msg);
+  } catch (mqtt::exception& e) { 
+    cout << e.what() << endl; 
+  }
 }
 
-void mqtt_facade::mqtt_topic(string suffix)
+string mqtt_facade::mqtt_topic(string suffix)
 {
   return "/" + robot_id_str_ + "/" + suffix;
 }

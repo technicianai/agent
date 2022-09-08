@@ -18,7 +18,7 @@ static int sql_callback(void *NotUsed, int argc, char **argv, char **azColName) 
    return 0;
 }
 
-recording_manager::recording_manager(shared_ptr<disk_monitor> dm, mqtt_facade facade) : Node("recording_manager")
+recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade) : Node("woeden_recording_manager"), facade_(facade)
 {
   dm_ = dm;
   recording_ = false;
@@ -51,7 +51,7 @@ void recording_manager::start(uint32_t bag_id, string base_path, vector<recordin
     record_cmd(bag_path_, recording_topics);
   } else if (recording_pid_ > 0) {
     recording_ = true;
-    facade_.publish_started(bag_id_);
+    facade_->publish_started(bag_id_);
     function<void ()> status_check = bind(&recording_manager::status_check, this);
     timer_ = create_wall_timer(std::chrono::seconds(15), status_check);
   } else {
@@ -84,7 +84,7 @@ void recording_manager::stop()
   metadata = remote_throttle_from_metadata(metadata);
   update_metadata(metadata_path, metadata);
 
-  facade_.publish_stopped(bag_id_, {
+  facade_->publish_stopped(bag_id_, {
     .metadata = metadata,
     .size = bag_size()
   });
@@ -164,21 +164,6 @@ uintmax_t recording_manager::bag_size()
   return directory_size(bag_path_);
 }
 
-void recording_manager::set_on_start(function<void (uint32_t)> on_start)
-{
-  on_start_ = on_start;
-}
-
-void recording_manager::set_on_stop(function<void (uint32_t, recording_metadata)> on_stop)
-{
-  on_stop_ = on_stop;
-}
-
-void recording_manager::set_on_status(function<void (uint32_t, recording_status)> on_status)
-{
-  on_status_ = on_status;
-}
-
 uintmax_t recording_manager::directory_size(string path)
 {
   uintmax_t size = 0;
@@ -228,7 +213,7 @@ void recording_manager::status_check()
   double rate = (size_ - previous_size_) / SAMPLING_INTERVAL;
   double eta = rate > 0 ? (double) remaining / rate : 0;
 
-  facade_.publish_status(bag_id_, {
+  facade_->publish_status(bag_id_, {
     .eta = eta,
     .rate = rate,
     .size = size_
