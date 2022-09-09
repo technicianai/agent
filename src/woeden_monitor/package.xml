@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>woeden_monitor</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="alec.timothy.bell@gmail.com">alecbell</maintainer>
+  <name>woeden_agent</name>
+  <version>1.0.0</version>
+  <description>Agent designed to run on the robots of Woeden's users.</description>
+  <maintainer email="alec@woeden.com">alecbell</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
