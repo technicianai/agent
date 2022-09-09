@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  woeden_monitor:
+  woeden_agent:
     build:
       context: .
     network_mode: host

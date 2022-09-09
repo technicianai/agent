@@ -224,7 +224,7 @@ void recording_manager::status_check()
 
 void recording_manager::upload(uint32_t bag_id, string base_path, vector<string> urls)
 {
-  string command = "python3 /woeden_monitor/bag_utils/upload.py ";
+  string command = "python3 /woeden_agent/bag_utils/upload.py ";
   command += to_string(bag_id) + " ";
   command += base_path + " ";
   for (const string & url : urls) {
