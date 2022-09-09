@@ -17,8 +17,8 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
   client_ = make_shared<mqtt::async_client>(host, robot_id_str_);
 
   auto connect_options = mqtt::connect_options_builder() 
-    // .user_name(robot_id_str_)
-    // .password(password_)
+    .user_name(robot_id_str_)
+    .password(password_)
     .keep_alive_interval(std::chrono::seconds(20))
     .automatic_reconnect(std::chrono::seconds(2), std::chrono::seconds(30))
     .clean_session()

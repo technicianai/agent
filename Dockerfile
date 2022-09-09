@@ -14,14 +14,14 @@ RUN cd downloads && \
     make install && \
     ldconfig
 
-WORKDIR /woeden_monitor
+WORKDIR /woeden_agent
 
-COPY . /woeden_monitor/
+COPY . /woeden_agent/
 RUN . /opt/ros/humble/setup.bash && colcon build
 
 ENV HOME /
 ENV HOST 3.140.168.45
 
-RUN rm -rf /woeden_monitor/src/
+RUN rm -rf /woeden_agent/src/
 
 CMD ["./ros-entrypoint.sh"]
