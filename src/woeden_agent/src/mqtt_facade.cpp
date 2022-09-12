@@ -1,3 +1,4 @@
+#include "config.hpp"
 #include "mqtt_facade.hpp"
 #include "ros2_monitor.hpp"
 #include "utils.hpp"
@@ -12,15 +13,15 @@ namespace woeden
 {
 mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
 {
-  robot_id_str_ = std::to_string(robot_id);
+  robot_id_str_ = to_string(robot_id);
   password_ = password;
   client_ = make_shared<mqtt::async_client>(host, robot_id_str_);
 
   auto connect_options = mqtt::connect_options_builder() 
     .user_name(robot_id_str_)
     .password(password_)
-    .keep_alive_interval(std::chrono::seconds(20))
-    .automatic_reconnect(std::chrono::seconds(2), std::chrono::seconds(30))
+    .keep_alive_interval(chrono::seconds(20))
+    .automatic_reconnect(chrono::seconds(2), chrono::seconds(30))
     .clean_session()
     .finalize();
 
@@ -36,7 +37,7 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("record"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("stop"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("upload"), 0, subOpts, props);
-    //client_->subscribe(new_trigger_topic, 0, subOpts, props);
+    client_->subscribe(mqtt_topic("new_trigger"), 0, subOpts, props);
   } catch (mqtt::exception& e) { 
     cout << e.what() << endl; 
   }
@@ -140,6 +141,13 @@ void mqtt_facade::publish_uploaded(string data)
   publish("uploaded", data.c_str());
 }
 
+void mqtt_facade::publish_autostart(uint64_t recording_trigger_id)
+{
+  nlohmann::json data;
+  data["id"] = recording_trigger_id;
+  publish("record/auto", data);
+}
+
 void mqtt_facade::publish(string topic, nlohmann::json payload)
 {
   publish(topic, payload.dump().c_str());
@@ -170,42 +178,40 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
 
     uint32_t bag_id = data["id"].get<uint32_t>();
     string base_path = data["base_path"];
-    std::vector<recording_topic> recording_topics;
+    uint32_t duration = data["duration"].get<uint32_t>();
+    vector<recording_topic> recording_topics;
 
     for (auto& topic : data["topics"]) {
       recording_topics.push_back({
-        .name = topic["name"].get<std::string>(),
+        .name = topic["name"].get<string>(),
         .throttle = topic["max_frequency"].get<bool>(),
         .frequency = topic["frequency"].get<double>()
       });
     }
 
-    on_record_(bag_id, base_path, recording_topics);
+    on_record_(bag_id, base_path, duration, recording_topics);
   } else if (topic == mqtt_topic("stop")) {
     on_stop_();
   } else if (topic == mqtt_topic("upload")) {
     nlohmann::json data = nlohmann::json::parse(payload);
 
     uint32_t bag_id = data["id"].get<uint32_t>();
-    std::string base_path = data["base_path"];
-    std::vector<std::string> urls;
+    string base_path = data["base_path"];
+    vector<string> urls;
     
     for (auto& url : data["urls"]) {
-      urls.push_back(url.get<std::string>());
+      urls.push_back(url.get<string>());
     }
 
     on_upload_(bag_id, base_path, urls);
+  } else if (topic == mqtt_topic("new_trigger")) {
+    nlohmann::json data = nlohmann::json::parse(payload);
+    recording_trigger rt = recording_trigger::from_json(data);
+    on_new_trigger_(rt);
   }
-  // else if (topic == new_trigger_topic) {
-  //   std::string payload = msg->to_string();
-  //   nlohmann::json data = nlohmann::json::parse(payload);
-  //   recording_trigger rt = recording_trigger::from_json(data);
-  //   c_.add_recording_trigger(rt);
-  //   triggers_.push_back(rt);
-  // }
 }
 
-void mqtt_facade::set_record_callback(function<void (uint32_t, string, vector<recording_topic>)> cb)
+void mqtt_facade::set_record_callback(function<void (uint32_t, string, uint32_t, vector<recording_topic>)> cb)
 {
   on_record_ = cb;
 }
@@ -218,5 +224,10 @@ void mqtt_facade::set_stop_callback(function<void ()> cb)
 void mqtt_facade::set_upload_callback(function<void (uint32_t, string, vector<string>)> cb)
 {
   on_upload_ = cb;
+}
+
+void mqtt_facade::set_new_trigger_callback(function<void (recording_trigger)> cb)
+{
+  on_new_trigger_ = cb;
 }
 }

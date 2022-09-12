@@ -25,11 +25,15 @@ int main(int argc, char * argv[])
 
   auto dm = make_shared<disk_monitor>(facade);
   auto rm = make_shared<recording_manager>(dm, facade);
-  auto r2m = make_shared<ros2_monitor>(facade);
+  auto r2m = make_shared<ros2_monitor>(facade, c.get_recording_triggers());
 
-  facade->set_record_callback(bind(&recording_manager::start, rm, _1, _2, _3));
+  facade->set_record_callback(bind(&recording_manager::start, rm, _1, _2, _3, _4));
   facade->set_stop_callback(bind(&recording_manager::stop, rm));
   facade->set_upload_callback(bind(&recording_manager::upload, rm, _1, _2, _3));
+  facade->set_new_trigger_callback([&c, r2m](recording_trigger rt) -> void {
+    r2m->add_trigger(rt);
+    c.add_trigger(rt);
+  });
 
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(dm);

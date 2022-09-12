@@ -26,7 +26,7 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
   recording_ = false;
 }
 
-void recording_manager::start(uint32_t bag_id, string base_path, vector<recording_topic> recording_topics)
+void recording_manager::start(uint32_t bag_id, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
 {
   if (recording_) {
     throw logic_error("already recording");
@@ -55,7 +55,13 @@ void recording_manager::start(uint32_t bag_id, string base_path, vector<recordin
     recording_ = true;
     facade_->publish_started(bag_id_);
     function<void ()> status_check = bind(&recording_manager::status_check, this);
-    timer_ = create_wall_timer(std::chrono::seconds(15), status_check);
+    timer_ = create_wall_timer(chrono::seconds(15), status_check);
+    if (duration > 0) {
+      auto_stop_timer_ = create_wall_timer(chrono::seconds(duration), [&]() -> void {
+        stop();
+        auto_stop_timer_.reset();
+      });
+    }
   } else {
     throw runtime_error("error forking recording process");
   }

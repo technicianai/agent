@@ -14,10 +14,10 @@ public:
     std::string comparison_field, std::string comparison_value, std::string comparison_value_type);
 
   bool in(nlohmann::json data);
-  std::string get_value(nlohmann::json data);
+  uint32_t get_id();
   std::string get_topic();
   
-  bool evaluate(std::string value);
+  bool evaluate(nlohmann::json data);
 
   nlohmann::json to_json();
   static recording_trigger from_json(nlohmann::json rt_json);

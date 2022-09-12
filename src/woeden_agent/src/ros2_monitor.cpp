@@ -5,10 +5,11 @@
 #include <sstream>
 
 using namespace std;
+using namespace placeholders;
 
 namespace woeden
 {
-ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade) : Node("woeden_ros2_monitor"), facade_(facade)
+ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, vector<recording_trigger> triggers) : Node("woeden_ros2_monitor"), facade_(facade), unassigned_triggers_(triggers)
 {
   discover_packages();
 
@@ -23,6 +24,11 @@ ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade) : Node("woeden_ros2_m
 
   function<void ()> topics_freq_cb = bind(&ros2_monitor::sample_topic_freqs, this);
   topics_freq_timer_ = this->create_wall_timer(chrono::seconds(SAMPLING_INTERVAL), topics_freq_cb);
+}
+
+void ros2_monitor::add_trigger(recording_trigger rt)
+{
+  unassigned_triggers_.push_back(rt);
 }
 
 void ros2_monitor::discover_packages()
@@ -92,25 +98,42 @@ void ros2_monitor::discover_topics()
 {
   map<string, vector<string>> topic_names_and_types = get_topic_names_and_types();
   for (auto it = topic_names_and_types.begin(); it != topic_names_and_types.end(); ++it) {
-    bool known = false;
-
     string topic_name = it->first;
     string topic_type = it->second[0];
-
-    for (topic* t : topics_) {
-      if (topic_name == t->name) {
-        known = true;
+    
+    vector<recording_trigger> new_topic_triggers;
+    for (int i = unassigned_triggers_.size()-1; i >= 0; i--) {
+      recording_trigger rt = unassigned_triggers_[i];
+      if (topic_name == rt.get_topic()) {
+        new_topic_triggers.push_back(rt);
+        unassigned_triggers_.erase(unassigned_triggers_.begin()+i);
       }
     }
 
-    if (!known) {
-      topic* t = new topic{.name = topic_name, .type = topic_type, .message_count = 0};
-      function<void (shared_ptr<rclcpp::SerializedMessage>)> func = 
-        [t](const shared_ptr<rclcpp::SerializedMessage>) -> void { t->message_count++; };
-      rclcpp::SubscriptionBase::SharedPtr sub = this->create_generic_subscription(topic_name, topic_type, 10, func);
-      topics_.push_back(t);
-      subscriptions_.push_back(sub);
+    bool known = false;
+    for (topic* t : topics_) {
+      if (topic_name == t->name) {
+        vector<recording_trigger> topic_triggers = t->triggers;
+        for (recording_trigger& rt : new_topic_triggers) {
+          t->triggers.push_back(rt);
+        }
+        known = true;
+      }
     }
+    if (known) continue;
+
+    topic* t = new topic{.name = topic_name, .type = topic_type, .message_count = 0, .triggers = new_topic_triggers};
+    topics_.push_back(t);
+
+    rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
+    if (topic_type == "std_msgs/msg/String") {
+      function<void (shared_ptr<std_msgs::msg::String>)> cb = bind(&ros2_monitor::trigger_callback, this, _1, t);
+      sub = create_subscription<std_msgs::msg::String>(topic_name, 10, cb);
+    } else {
+      function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
+      sub = create_generic_subscription(topic_name, topic_type, 10, cb);
+    }
+    subscriptions_.push_back(sub);
   }
 }
 
@@ -125,38 +148,20 @@ void ros2_monitor::sample_topic_freqs()
   }
   facade_->publish_topics(data);
 }
+
+void ros2_monitor::default_callback(shared_ptr<rclcpp::SerializedMessage> msg, topic* t)
+{
+  t->message_count++;
 }
 
-// if (!known) {
-// // vector<recording_trigger> topic_triggers;
-// // for (recording_trigger t : triggers_) {
-// //   if (t.get_topic() == topic_name) {
-// //     topic_triggers.push_back(t);
-// //   }
-// // }
-//   subscription * config = new subscription{.name = topic_name, .types = topic_types, .message_count = 0}; //.triggers = topic_triggers};
-//   rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
-// // if (topic_types[0] == "std_msgs/msg/String") {
-// //   function<void (shared_ptr<std_msgs::msg::String>)> func = 
-// //     [config](const shared_ptr<std_msgs::msg::String> msg) -> void {
-// //       config->message_count++;
-// //       for (recording_trigger t : config->triggers) {
-// //         string rofl = msg->data;
-// //         nlohmann::json msg_data = nlohmann::json::parse(msg->data);
-// //         if (t.in(msg_data)) {
-// //           string value = t.get_value(msg_data);
-// //           if (t.evaluate(value)) {
-// //             RCLCPP_INFO(rclcpp::get_logger("jej"), "made it here");
-// //           }
-// //         }
-// //       }
-// //     };
-// //   sub = this->create_subscription<std_msgs::msg::String>(topic_name, 10, func);
-// // } else {
-//   function<void (shared_ptr<rclcpp::SerializedMessage>)> func = 
-//     [config](const shared_ptr<rclcpp::SerializedMessage>) -> void { config->message_count++; };
-//   sub = this->create_generic_subscription(topic_name, topic_types[0], 10, func);
-// // }
-//   subscription_data_.insert(make_pair(topic_name, config));
-//   subscriptions_.insert(make_pair(topic_name, sub));
-// }
+void ros2_monitor::trigger_callback(shared_ptr<std_msgs::msg::String> msg, topic* t)
+{
+  t->message_count++;
+  for (recording_trigger rt : t->triggers) {
+    nlohmann::json msg_data = nlohmann::json::parse(msg->data);
+    if (rt.in(msg_data) && rt.evaluate(msg_data)) {
+      facade_->publish_autostart(rt.get_id());
+    }
+  }
+}
+}

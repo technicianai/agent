@@ -22,9 +22,9 @@ bool recording_trigger::in(nlohmann::json data)
   return data.contains(comparison_field_);
 }
 
-string recording_trigger::get_value(nlohmann::json data)
+uint32_t recording_trigger::get_id()
 {
-  return data[comparison_field_].get<string>();
+  return id_;
 }
 
 string recording_trigger::get_topic()
@@ -32,19 +32,20 @@ string recording_trigger::get_topic()
   return comparison_topic_;
 }
 
-bool recording_trigger::evaluate(string value)
+bool recording_trigger::evaluate(nlohmann::json data)
 {
   if (comparison_value_type_ == "STRING") {
+    string value = data.get<string>();
     return value == comparison_value_;
   } else {
-    double val = stod(value);
     double comp = stod(comparison_value_);
+    double value = data[comparison_field_].get<double>();
     if (comparison_type_ == "EQUAL_TO") {
-      return abs(val - comp) < 0.1;
+      return abs(value - comp) < 0.1;
     } else if (comparison_type_ == "GREATER_THAN") {
-      return val > comp;
+      return value > comp;
     } else if (comparison_type_ == "LESS_THAN") {
-      return val < comp;
+      return value < comp;
     }
   }
   return false;

@@ -1,6 +1,8 @@
 #ifndef ROS2_DTO_H
 #define ROS2_DTO_H
 
+#include "recording_trigger.hpp"
+
 #include <string>
 #include <vector>
 
@@ -29,7 +31,7 @@ struct topic
   std::string type;
   double frequency;
   uint32_t message_count;
-  //vector<recording_trigger> triggers;
+  std::vector<recording_trigger> triggers;
 };
 }
 
