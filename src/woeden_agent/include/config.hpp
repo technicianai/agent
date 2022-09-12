@@ -19,7 +19,7 @@ public:
   std::string get_password();
   std::vector<recording_trigger> get_recording_triggers();
 
-  void add_recording_trigger(recording_trigger rt);
+  void add_trigger(recording_trigger rt);
 
 private:
   nlohmann::json load(std::string path);

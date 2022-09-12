@@ -20,7 +20,7 @@ class recording_manager : public rclcpp::Node
 public:
   recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade);
 
-  void start(uint32_t bag_id, std::string base_path, std::vector<recording_topic> recording_topics);
+  void start(uint32_t bag_id, std::string base_path, uint32_t duration, std::vector<recording_topic> recording_topics);
   void stop();
   bool is_recording();
   uintmax_t bag_size();
@@ -55,6 +55,7 @@ private:
   uintmax_t previous_size_;
 
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr auto_stop_timer_;
 
   std::shared_ptr<disk_monitor> dm_;
   std::shared_ptr<mqtt_facade> facade_;

@@ -11,18 +11,24 @@
 #include <string>
 #include <vector>
 
+#include "std_msgs/msg/string.hpp"
+
 namespace woeden
 {
 class ros2_monitor : public rclcpp::Node
 {
 public:
-  ros2_monitor(std::shared_ptr<mqtt_facade> facade);
+  ros2_monitor(std::shared_ptr<mqtt_facade> facade, std::vector<recording_trigger> triggers);
+
+  void add_trigger(recording_trigger rt);
 
 private:
   void discover_packages();
   void discover_nodes();
   void discover_topics();
   void sample_topic_freqs();
+  void default_callback(std::shared_ptr<rclcpp::SerializedMessage> msg, topic* t);
+  void trigger_callback(std::shared_ptr<std_msgs::msg::String> msg, topic* t);
 
   std::shared_ptr<mqtt_facade> facade_;
 
@@ -30,7 +36,7 @@ private:
 
   std::vector<node> nodes_;
   std::vector<topic*> topics_;
-  //vector<recording_trigger> triggers_;
+  std::vector<recording_trigger> unassigned_triggers_;
 
   rclcpp::TimerBase::SharedPtr alive_timer_;
   rclcpp::TimerBase::SharedPtr nodes_timer_;

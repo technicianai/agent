@@ -3,6 +3,7 @@
 
 #include "disk_dto.hpp"
 #include "recording_dto.hpp"
+#include "recording_trigger.hpp"
 #include "ros2_dto.hpp"
 #include "mqtt/async_client.h"
 
@@ -33,9 +34,12 @@ public:
 
   void publish_uploaded(std::string data);
 
-  void set_record_callback(std::function<void (uint32_t, std::string, std::vector<recording_topic>)> cb);
+  void publish_autostart(uint64_t recording_trigger_id);
+
+  void set_record_callback(std::function<void (uint32_t, std::string, uint32_t, std::vector<recording_topic>)> cb);
   void set_stop_callback(std::function<void ()> cb);
   void set_upload_callback(std::function<void (uint32_t, std::string, std::vector<std::string>)> cb);
+  void set_new_trigger_callback(std::function<void (recording_trigger)> cb);
 
 private:
   void dispatch(mqtt::const_message_ptr msg);
@@ -47,9 +51,10 @@ private:
   std::string robot_id_str_;
   std::string password_;
 
-  std::function<void (uint32_t, std::string, std::vector<recording_topic>)> on_record_;
+  std::function<void (uint32_t, std::string, uint32_t, std::vector<recording_topic>)> on_record_;
   std::function<void ()> on_stop_;
   std::function<void (uint32_t, std::string, std::vector<std::string>)> on_upload_;
+  std::function<void (recording_trigger)> on_new_trigger_;
 };
 }
 

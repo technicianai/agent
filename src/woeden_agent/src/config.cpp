@@ -32,7 +32,7 @@ vector<recording_trigger> config::get_recording_triggers()
   return rts;
 }
 
-void config::add_recording_trigger(recording_trigger rt)
+void config::add_trigger(recording_trigger rt)
 {
   nlohmann::json rt_json = rt.to_json();
   contents_["triggers"].push_back(rt_json);

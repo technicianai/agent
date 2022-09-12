@@ -3,11 +3,7 @@
 <package format="3">
   <name>woeden_agent</name>
   <version>1.0.0</version>
-<<<<<<<< HEAD:src/woeden_monitor/package.xml
-  <description>Agent designed to run on the robots of Woeden's users.</description>
-========
   <description>Run this agent on your robot for monitoring, remote control, and data collection capabilities.</description>
->>>>>>>> d175854 (Rename, enable username/passwords, and update README.md):src/woeden_agent/package.xml
   <maintainer email="alec@woeden.com">alecbell</maintainer>
   <license>TODO: License declaration</license>
 
