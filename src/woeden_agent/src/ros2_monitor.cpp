@@ -24,6 +24,8 @@ ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, vector<recording_trig
 
   function<void ()> topics_freq_cb = bind(&ros2_monitor::sample_topic_freqs, this);
   topics_freq_timer_ = this->create_wall_timer(chrono::seconds(SAMPLING_INTERVAL), topics_freq_cb);
+
+  gateway_open_ = false;
 }
 
 void ros2_monitor::add_trigger(recording_trigger rt)
@@ -163,5 +165,54 @@ void ros2_monitor::trigger_callback(shared_ptr<std_msgs::msg::String> msg, topic
       facade_->publish_autostart(rt.get_id());
     }
   }
+}
+
+void ros2_monitor::open_gateway(string ec2_ip)
+{
+  if (gateway_open_) {
+    RCLCPP_ERROR(get_logger(), "gateway already open");
+    return;
+  }
+
+  rosbridge_server_pid_ = fork();
+  if (rosbridge_server_pid_ == 0) {
+    rosbridge_server_cmd();
+  } else if (rosbridge_server_pid_ > 0) {
+    gateway_pid_ = fork();
+    if (gateway_pid_ == 0) {
+      sleep(5);
+      gateway_cmd(ec2_ip);
+    } else if (gateway_pid_ > 0) {
+      gateway_open_ = true;
+      facade_->publish_gateway_open();
+    } else {
+      throw runtime_error("error forking gateway process");
+    }
+  } else {
+    throw runtime_error("error forking rosbridge server process");
+  }
+}
+
+void ros2_monitor::close_gateway()
+{
+  kill(rosbridge_server_pid_, SIGINT);
+  kill(gateway_pid_, SIGINT);
+  gateway_open_ = false;
+  facade_->publish_gateway_closed();
+}
+
+void ros2_monitor::gateway_cmd(string ec2_ip)
+{
+  string ec2_login = "ec2-user@" + ec2_ip;
+  char* args[9] = { "ssh", "-o", "StrictHostKeyChecking=no", "-i", "/woeden_agent/certs/gateway.pem", "-N", "-R", ":9090:localhost:9090", const_cast<char*>(ec2_login.c_str()) };
+  RCLCPP_INFO(get_logger(), "opening ssh tunnel");
+  execvp("ssh", args);
+}
+
+void ros2_monitor::rosbridge_server_cmd()
+{
+  char* args[4] = { "ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml" };
+  RCLCPP_INFO(get_logger(), "starting rosbridge server");
+  execvp("ros2", args);
 }
 }

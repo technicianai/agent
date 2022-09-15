@@ -38,6 +38,8 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("stop"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("upload"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("new_trigger"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("robot_gateway"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
   } catch (mqtt::exception& e) { 
     cout << e.what() << endl; 
   }
@@ -148,6 +150,16 @@ void mqtt_facade::publish_autostart(uint64_t recording_trigger_id)
   publish("record/auto", data);
 }
 
+void mqtt_facade::publish_gateway_open()
+{
+  publish("robot_gateway/opened", "");
+}
+
+void mqtt_facade::publish_gateway_closed()
+{
+  publish("robot_gateway/closed", "");
+}
+
 void mqtt_facade::publish(string topic, nlohmann::json payload)
 {
   publish(topic, payload.dump().c_str());
@@ -208,6 +220,12 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     nlohmann::json data = nlohmann::json::parse(payload);
     recording_trigger rt = recording_trigger::from_json(data);
     on_new_trigger_(rt);
+  } else if (topic == mqtt_topic("robot_gateway")) {
+    nlohmann::json data = nlohmann::json::parse(payload);
+    string ec2_ip = data["ec2_ip"].get<string>();
+    on_gateway_(ec2_ip);
+  } else if (topic == mqtt_topic("robot_gateway/close")) {
+    on_gateway_close_();
   }
 }
 
@@ -229,5 +247,15 @@ void mqtt_facade::set_upload_callback(function<void (uint32_t, string, vector<st
 void mqtt_facade::set_new_trigger_callback(function<void (recording_trigger)> cb)
 {
   on_new_trigger_ = cb;
+}
+
+void mqtt_facade::set_gateway_callback(function<void (string)> cb)
+{
+  on_gateway_ = cb;
+}
+
+void mqtt_facade::set_gateway_close_callback(function<void ()> cb)
+{
+  on_gateway_close_ = cb;
 }
 }

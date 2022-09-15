@@ -34,6 +34,8 @@ int main(int argc, char * argv[])
     r2m->add_trigger(rt);
     c.add_trigger(rt);
   });
+  facade->set_gateway_callback(bind(&ros2_monitor::open_gateway, r2m, _1));
+  facade->set_gateway_close_callback(bind(&ros2_monitor::close_gateway, r2m));
 
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(dm);
