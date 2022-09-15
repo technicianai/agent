@@ -35,7 +35,7 @@ string recording_trigger::get_topic()
 bool recording_trigger::evaluate(nlohmann::json data)
 {
   if (comparison_value_type_ == "STRING") {
-    string value = data.get<string>();
+    string value = data[comparison_field_].get<string>();
     return value == comparison_value_;
   } else {
     double comp = stod(comparison_value_);

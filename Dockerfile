@@ -1,7 +1,10 @@
 FROM ros:humble
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && apt-get install openssl
+RUN apt-get update && apt-get install -y \
+    openssl \
+    openssh-client \
+    ros-humble-rosbridge-suite
 
 RUN mkdir downloads
 RUN cd downloads && \
