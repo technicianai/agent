@@ -26,23 +26,20 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     .finalize();
 
   client_->set_message_callback(bind(&mqtt_facade::dispatch, this, placeholders::_1));
-  mqtt::token_ptr token_conn = client_->connect(connect_options);
-  token_conn->wait();
 
-  mqtt::subscribe_options subOpts;
-  mqtt::properties props {
-    { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 },
-  };
-  try {
+  client_->set_connected_handler([&](string data) -> void {
+    mqtt::subscribe_options subOpts;
+    mqtt::properties props { { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 } };
     client_->subscribe(mqtt_topic("record"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("stop"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("upload"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("new_trigger"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
-  } catch (mqtt::exception& e) { 
-    cout << e.what() << endl; 
-  }
+  });
+
+  mqtt::token_ptr token_conn = client_->connect(connect_options);
+  token_conn->wait();
 
   client_->start_consuming();
 
