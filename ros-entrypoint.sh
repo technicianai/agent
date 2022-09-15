@@ -3,7 +3,7 @@
 . /opt/ros/humble/setup.bash
 . install/setup.bash
 
-if [[ ! -f "/woeden/id" ]]; then
+if [[ ! -f "/woeden/config" ]]; then
     echo "We were unable to identify your robot. Did you run the setup script provided at https://woeden.com/?"
     exit 1
 fi
