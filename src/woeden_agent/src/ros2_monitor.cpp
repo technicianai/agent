@@ -106,7 +106,7 @@ void ros2_monitor::discover_topics()
     vector<recording_trigger> new_topic_triggers;
     for (int i = unassigned_triggers_.size()-1; i >= 0; i--) {
       recording_trigger rt = unassigned_triggers_[i];
-      if (topic_name == rt.get_topic()) {
+      if (topic_name == rt.get_topic() && topic_type == rt.get_topic_type()) {
         new_topic_triggers.push_back(rt);
         unassigned_triggers_.erase(unassigned_triggers_.begin()+i);
       }
@@ -114,7 +114,7 @@ void ros2_monitor::discover_topics()
 
     bool known = false;
     for (topic* t : topics_) {
-      if (topic_name == t->name) {
+      if (topic_name == t->name && topic_type == t->type) {
         vector<recording_trigger> topic_triggers = t->triggers;
         for (recording_trigger& rt : new_topic_triggers) {
           t->triggers.push_back(rt);
@@ -129,8 +129,11 @@ void ros2_monitor::discover_topics()
 
     rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
     if (topic_type == "std_msgs/msg/String") {
-      function<void (shared_ptr<std_msgs::msg::String>)> cb = bind(&ros2_monitor::trigger_callback, this, _1, t);
+      function<void (shared_ptr<std_msgs::msg::String>)> cb = bind(&ros2_monitor::json_trigger_callback, this, _1, t);
       sub = create_subscription<std_msgs::msg::String>(topic_name, 10, cb);
+    } else if (topic_type == "diagnostic_msgs/msg/KeyValue") {
+      function<void (shared_ptr<diagnostic_msgs::msg::KeyValue>)> cb = bind(&ros2_monitor::key_value_trigger_callback, this, _1, t);
+      sub = create_subscription<diagnostic_msgs::msg::KeyValue>(topic_name, 10, cb);
     } else {
       function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
       sub = create_generic_subscription(topic_name, topic_type, 10, cb);
@@ -156,12 +159,22 @@ void ros2_monitor::default_callback(shared_ptr<rclcpp::SerializedMessage> msg, t
   t->message_count++;
 }
 
-void ros2_monitor::trigger_callback(shared_ptr<std_msgs::msg::String> msg, topic* t)
+void ros2_monitor::json_trigger_callback(shared_ptr<std_msgs::msg::String> msg, topic* t)
 {
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
     nlohmann::json msg_data = nlohmann::json::parse(msg->data);
     if (rt.in(msg_data) && rt.evaluate(msg_data)) {
+      facade_->publish_autostart(rt.get_id());
+    }
+  }
+}
+
+void ros2_monitor::key_value_trigger_callback(shared_ptr<diagnostic_msgs::msg::KeyValue> msg, topic* t)
+{
+  t->message_count++;
+  for (recording_trigger rt : t->triggers) {
+    if (rt.in(msg) && rt.evaluate(msg)) {
       facade_->publish_autostart(rt.get_id());
     }
   }
