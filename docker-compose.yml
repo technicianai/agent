@@ -2,10 +2,11 @@ version: '3'
 
 services:
   woeden_agent:
+    # image: public.ecr.aws/woeden/agent:latest
     build:
       context: .
     network_mode: host
-    environment:
-      - HOST=localhost:1883
+    # environment:
+    #   - HOST=localhost:1883
     volumes:
       - ~/woeden:/woeden

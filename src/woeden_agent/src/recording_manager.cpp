@@ -138,7 +138,7 @@ void recording_manager::throttle_cmd(string topic, double frequency)
 
 void recording_manager::record_cmd(string bag_path, vector<recording_topic> recording_topics)
 {
-  char* args[recording_topics.size() + 6] = { "ros2", "bag", "record" };
+  char* args[recording_topics.size() + 8] = { "ros2", "bag", "record" };
   int i = 3;
 
   for (const recording_topic & rt : recording_topics) {
@@ -153,6 +153,10 @@ void recording_manager::record_cmd(string bag_path, vector<recording_topic> reco
 
   args[i++] = "-o";
   args[i++] = const_cast<char*>(bag_path.c_str());
+
+  args[i++] = "--max-bag-size";
+  args[i++] = "1050000000"; // ~0.98GB
+
   args[i++] = NULL;
 
   execvp("ros2", args);
