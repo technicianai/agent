@@ -4,6 +4,7 @@
 #include "disk_monitor.hpp"
 #include "mqtt_facade.hpp"
 #include "recording_dto.hpp"
+#include "recording_trigger.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include <functional>
@@ -20,12 +21,13 @@ class recording_manager : public rclcpp::Node
 public:
   recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade);
 
-  void start(uint32_t bag_id, std::string base_path, uint32_t duration, std::vector<recording_topic> recording_topics);
+  void start(std::string bag_uuid, std::string base_path, uint32_t duration, std::vector<recording_topic> recording_topics);
+  void auto_start(recording_trigger rt);
   void stop();
   bool is_recording();
   uintmax_t bag_size();
 
-  void upload(uint32_t bag_id, std::string base_path, std::vector<std::string> urls);
+  void upload(std::string bag_uuid, std::string base_path, std::vector<std::string> urls);
 
 private:
   void throttle_cmd(std::string topic, double frequency);
@@ -49,7 +51,8 @@ private:
   std::string base_path_;
   std::string bag_path_;
 
-  uint32_t bag_id_;
+  std::string bag_uuid_;
+  uint32_t trigger_id_;
 
   uintmax_t size_;
   uintmax_t previous_size_;

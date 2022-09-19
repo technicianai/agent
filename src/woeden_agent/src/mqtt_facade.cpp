@@ -1,5 +1,6 @@
 #include "config.hpp"
 #include "mqtt_facade.hpp"
+#include "recording_dto.hpp"
 #include "ros2_monitor.hpp"
 #include "utils.hpp"
 
@@ -109,42 +110,38 @@ void mqtt_facade::publish_mounted_paths(vector<mount> mounts)
   publish("mounted_paths", mounts_json);
 }
 
-void mqtt_facade::publish_started(uint64_t bag_id)
+void mqtt_facade::publish_started(string bag_uuid, uint32_t trigger_id)
 {
   nlohmann::json data;
-  data["id"] = bag_id;
+  data["bag_uuid"] = bag_uuid;
+  data["trigger_id"] = trigger_id;
   publish("started", data);
 }
 
-void mqtt_facade::publish_stopped(uint64_t bag_id, recording_metadata rm)
+void mqtt_facade::publish_stopped(string bag_uuid, recording_metadata rm)
 {
   nlohmann::json data;
-  data["id"] = bag_id;
+  data["bag_uuid"] = bag_uuid;
   data["yaml"] = rm.metadata;
   data["size"] = rm.size;
+  data["trigger_id"] = rm.trigger_id;
   publish("stopped", data);
 }
 
-void mqtt_facade::publish_status(uint64_t bag_id, recording_status rs)
+void mqtt_facade::publish_status(string bag_uuid, recording_status rs)
 {
   nlohmann::json data;
-  data["id"] = bag_id;
+  data["bag_uuid"] = bag_uuid;
   data["size"] = rs.size;
   data["rate"] = rs.rate;
   data["eta"] = rs.eta;
+  data["trigger_id"] = rs.trigger_id;
   publish("recording", data);
 }
 
 void mqtt_facade::publish_uploaded(string data)
 {
   publish("uploaded", data.c_str());
-}
-
-void mqtt_facade::publish_autostart(uint64_t recording_trigger_id)
-{
-  nlohmann::json data;
-  data["id"] = recording_trigger_id;
-  publish("record/auto", data);
 }
 
 void mqtt_facade::publish_gateway_open()
@@ -185,34 +182,28 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
   if (topic == mqtt_topic("record")) {
     nlohmann::json data = nlohmann::json::parse(payload);
 
-    uint32_t bag_id = data["id"].get<uint32_t>();
+    string bag_uuid = data["bag_uuid"];
     string base_path = data["base_path"];
     uint32_t duration = data["duration"].get<uint32_t>();
     vector<recording_topic> recording_topics;
-
     for (auto& topic : data["topics"]) {
-      recording_topics.push_back({
-        .name = topic["name"].get<string>(),
-        .throttle = topic["max_frequency"].get<bool>(),
-        .frequency = topic["frequency"].get<double>()
-      });
+      recording_topics.push_back(recording_topic::from_json(topic));
     }
 
-    on_record_(bag_id, base_path, duration, recording_topics);
+    on_record_(bag_uuid, base_path, duration, recording_topics);
   } else if (topic == mqtt_topic("stop")) {
     on_stop_();
   } else if (topic == mqtt_topic("upload")) {
     nlohmann::json data = nlohmann::json::parse(payload);
 
-    uint32_t bag_id = data["id"].get<uint32_t>();
+    string bag_uuid = data["bag_uuid"];
     string base_path = data["base_path"];
     vector<string> urls;
-    
     for (auto& url : data["urls"]) {
       urls.push_back(url.get<string>());
     }
 
-    on_upload_(bag_id, base_path, urls);
+    on_upload_(bag_uuid, base_path, urls);
   } else if (topic == mqtt_topic("new_trigger")) {
     nlohmann::json data = nlohmann::json::parse(payload);
     recording_trigger rt = recording_trigger::from_json(data);
@@ -226,7 +217,7 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
   }
 }
 
-void mqtt_facade::set_record_callback(function<void (uint32_t, string, uint32_t, vector<recording_topic>)> cb)
+void mqtt_facade::set_record_callback(function<void (string, string, uint32_t, vector<recording_topic>)> cb)
 {
   on_record_ = cb;
 }
@@ -236,7 +227,7 @@ void mqtt_facade::set_stop_callback(function<void ()> cb)
   on_stop_ = cb;
 }
 
-void mqtt_facade::set_upload_callback(function<void (uint32_t, string, vector<string>)> cb)
+void mqtt_facade::set_upload_callback(function<void (string, string, vector<string>)> cb)
 {
   on_upload_ = cb;
 }

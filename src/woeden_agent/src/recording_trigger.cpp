@@ -7,7 +7,8 @@ using namespace std;
 namespace woeden
 {
 recording_trigger::recording_trigger(uint32_t id, string comparison_topic, string comparison_type,
-  string comparison_field, string comparison_value, string comparison_value_type, string topic_type)
+  string comparison_field, string comparison_value, string comparison_value_type, string topic_type,
+  bool enabled, std::vector<recording_topic> record_topics, uint32_t duration, string base_path)
 {
   id_ = id;
   comparison_topic_ = comparison_topic;
@@ -16,6 +17,10 @@ recording_trigger::recording_trigger(uint32_t id, string comparison_topic, strin
   comparison_value_ = comparison_value;
   comparison_value_type_ = comparison_value_type;
   topic_type_ = topic_type;
+  enabled_ = enabled;
+  record_topics_ = record_topics;
+  duration_ = duration;
+  base_path_ = base_path;
 }
 
 bool recording_trigger::in(nlohmann::json data)
@@ -41,6 +46,21 @@ string recording_trigger::get_topic()
 string recording_trigger::get_topic_type()
 {
   return topic_type_;
+}
+
+vector<recording_topic> recording_trigger::get_record_topics()
+{
+  return record_topics_;
+}
+
+uint32_t recording_trigger::get_duration()
+{
+  return duration_;
+}
+
+string recording_trigger::get_base_path()
+{
+  return base_path_;
 }
 
 bool recording_trigger::evaluate(nlohmann::json data)
@@ -90,11 +110,23 @@ nlohmann::json recording_trigger::to_json()
   rt_json["comparison_value"] = comparison_value_;
   rt_json["comparison_value_type"] = comparison_value_type_;
   rt_json["topic_type"] = topic_type_;
+  rt_json["enabled"] = enabled_;
+  nlohmann::json topics;
+  for (recording_topic& record_topic : record_topics_) {
+    topics.push_back(record_topic.to_json())
+;  }
+  rt_json["topics"] = topics;
+  rt_json["duration"] = duration_;
+  rt_json["base_path"] = base_path_;
   return rt_json;
 }
 
 recording_trigger recording_trigger::from_json(nlohmann::json rt_json)
 {
+  vector<recording_topic> record_topics;
+  for (auto& record_topic_json : rt_json["topics"]) {
+    record_topics.push_back(recording_topic::from_json(record_topic_json));
+  }
   return recording_trigger(
     rt_json["id"].get<uint64_t>(),
     rt_json["comparison_topic"].get<string>(),
@@ -102,7 +134,11 @@ recording_trigger recording_trigger::from_json(nlohmann::json rt_json)
     rt_json["comparison_field"].get<string>(),
     rt_json["comparison_value"].get<string>(),
     rt_json["comparison_value_type"].get<string>(),
-    rt_json["topic_type"].get<string>()
+    rt_json["topic_type"].get<string>(),
+    rt_json["enabled"].get<bool>(),
+    record_topics,
+    rt_json["duration"].get<uint32_t>(),
+    rt_json["base_path"].get<string>()
   );
 }
 }

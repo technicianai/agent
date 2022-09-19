@@ -24,16 +24,17 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
 {
   dm_ = dm;
   recording_ = false;
+  trigger_id_ = NULL;
 }
 
-void recording_manager::start(uint32_t bag_id, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
+void recording_manager::start(string bag_uuid, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
 {
   if (recording_) {
     throw logic_error("already recording");
   }
-  bag_id_ = bag_id;
+  bag_uuid_ = bag_uuid;
   base_path_ = base_path;
-  bag_path_ = base_path_ + "/woeden/bags/" + to_string(bag_id_);
+  bag_path_ = base_path_ + "/woeden/bags/" + bag_uuid_;
 
   for (const recording_topic & rt : recording_topics) {
     if (rt.throttle) {
@@ -53,7 +54,7 @@ void recording_manager::start(uint32_t bag_id, string base_path, uint32_t durati
     record_cmd(bag_path_, recording_topics);
   } else if (recording_pid_ > 0) {
     recording_ = true;
-    facade_->publish_started(bag_id_);
+    facade_->publish_started(bag_uuid_, trigger_id_);
     function<void ()> status_check = bind(&recording_manager::status_check, this);
     timer_ = create_wall_timer(chrono::seconds(15), status_check);
     if (duration > 0) {
@@ -65,6 +66,12 @@ void recording_manager::start(uint32_t bag_id, string base_path, uint32_t durati
   } else {
     throw runtime_error("error forking recording process");
   }
+}
+
+void recording_manager::auto_start(recording_trigger rt)
+{
+  trigger_id_ = rt.get_id();
+  start(uuid(), rt.get_base_path(), rt.get_duration(), rt.get_record_topics());
 }
 
 void recording_manager::stop()
@@ -92,13 +99,15 @@ void recording_manager::stop()
   metadata = remote_throttle_from_metadata(metadata);
   update_metadata(metadata_path, metadata);
 
-  facade_->publish_stopped(bag_id_, {
+  facade_->publish_stopped(bag_uuid_, {
     .metadata = metadata,
-    .size = bag_size()
+    .size = bag_size(),
+    .trigger_id = trigger_id_
   });
 
   timer_.reset();
   recording_ = false;
+  trigger_id_ = NULL;
 }
 
 bool recording_manager::is_recording()
@@ -225,18 +234,18 @@ void recording_manager::status_check()
   double rate = (size_ - previous_size_) / SAMPLING_INTERVAL;
   double eta = rate > 0 ? (double) remaining / rate : 0;
 
-  facade_->publish_status(bag_id_, {
+  facade_->publish_status(bag_uuid_, {
     .eta = eta,
     .rate = rate,
-    .size = size_
+    .size = size_,
+    .trigger_id = trigger_id_
   });
 }
 
-void recording_manager::upload(uint32_t bag_id, string base_path, vector<string> urls)
+void recording_manager::upload(string bag_uuid, string base_path, vector<string> urls)
 {
   string command = "python3 /woeden_agent/bag_utils/upload.py ";
-  command += to_string(bag_id) + " ";
-  command += base_path + " ";
+  command += bag_uuid + " " + base_path + " ";
   for (const string & url : urls) {
     command += "\"" + url + "\" ";
   }
