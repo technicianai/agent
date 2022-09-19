@@ -10,10 +10,10 @@ from stream_zip import stream_zip, ZIP_64
 
 
 args = sys.argv
-bag_id = args[1]
+bag_uuid = args[1]
 base_path = args[2]
 urls = args[3:]
-dir = f'{base_path}/woeden/bags/{bag_id}'
+dir = f'{base_path}/woeden/bags/{bag_uuid}'
 
 def unzipped_files():
     modified_at = datetime.now()
@@ -21,7 +21,10 @@ def unzipped_files():
 
     def get_bytes(file):
         with open(f'{dir}/{file}', 'rb') as f:
-            yield f.read(1073741824)
+            data = f.read(1073741824)
+            while data:
+                yield data
+                data = f.read(1073741824)
 
     for file in os.listdir(dir):
         yield file, modified_at, perms, ZIP_64, get_bytes(file)
@@ -38,5 +41,5 @@ for url, chunk in zip(urls, chunks):
 
 print(json.dumps({
     'parts': parts,
-    'id': bag_id
+    'bag_uuid': bag_uuid
 }))

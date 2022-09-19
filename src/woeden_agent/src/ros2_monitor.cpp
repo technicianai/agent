@@ -9,7 +9,7 @@ using namespace placeholders;
 
 namespace woeden
 {
-ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, vector<recording_trigger> triggers) : Node("woeden_ros2_monitor"), facade_(facade), unassigned_triggers_(triggers)
+ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, shared_ptr<recording_manager> rm, vector<recording_trigger> triggers) : Node("woeden_ros2_monitor"), rm_(rm), facade_(facade), unassigned_triggers_(triggers)
 {
   discover_packages();
 
@@ -165,7 +165,7 @@ void ros2_monitor::json_trigger_callback(shared_ptr<std_msgs::msg::String> msg, 
   for (recording_trigger rt : t->triggers) {
     nlohmann::json msg_data = nlohmann::json::parse(msg->data);
     if (rt.in(msg_data) && rt.evaluate(msg_data)) {
-      facade_->publish_autostart(rt.get_id());
+      rm_->auto_start(rt);
     }
   }
 }
@@ -175,7 +175,7 @@ void ros2_monitor::key_value_trigger_callback(shared_ptr<diagnostic_msgs::msg::K
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
     if (rt.in(msg) && rt.evaluate(msg)) {
-      facade_->publish_autostart(rt.get_id());
+      rm_->auto_start(rt);
     }
   }
 }

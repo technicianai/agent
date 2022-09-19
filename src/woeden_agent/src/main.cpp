@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
 
   auto dm = make_shared<disk_monitor>(facade);
   auto rm = make_shared<recording_manager>(dm, facade);
-  auto r2m = make_shared<ros2_monitor>(facade, c.get_recording_triggers());
+  auto r2m = make_shared<ros2_monitor>(facade, rm, c.get_recording_triggers());
 
   facade->set_record_callback(bind(&recording_manager::start, rm, _1, _2, _3, _4));
   facade->set_stop_callback(bind(&recording_manager::stop, rm));

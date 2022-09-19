@@ -2,6 +2,7 @@
 #define ROS2_MONITOR_H
 
 #include "mqtt_facade.hpp"
+#include "recording_manager.hpp"
 #include "ros2_dto.hpp"
 
 #include "rclcpp/rclcpp.hpp"
@@ -19,7 +20,7 @@ namespace woeden
 class ros2_monitor : public rclcpp::Node
 {
 public:
-  ros2_monitor(std::shared_ptr<mqtt_facade> facade, std::vector<recording_trigger> triggers);
+  ros2_monitor(std::shared_ptr<mqtt_facade> facade, std::shared_ptr<recording_manager> rm, std::vector<recording_trigger> triggers);
 
   void add_trigger(recording_trigger rt);
   void open_gateway(std::string ec2_ip);
@@ -37,6 +38,7 @@ private:
   void rosbridge_server_cmd();
 
   std::shared_ptr<mqtt_facade> facade_;
+  std::shared_ptr<recording_manager> rm_;
 
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
 

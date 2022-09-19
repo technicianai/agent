@@ -25,4 +25,13 @@ string blocking_cmd(const char* cmd)
   }
   return result;
 }
+
+string uuid()
+{
+  uuid_t new_uuid;
+  uuid_generate(new_uuid);
+  char uuid_cstr[100];
+  uuid_unparse(new_uuid, uuid_cstr);
+  return string(uuid_cstr);
+}
 }

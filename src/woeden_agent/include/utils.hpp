@@ -9,9 +9,13 @@
 #include <string>
 #include <vector>
 
+#include <uuid/uuid.h>
+
 namespace woeden
 {
 std::string blocking_cmd(const char* cmd);
+
+std::string uuid();
 }
 
 #endif

@@ -28,20 +28,18 @@ public:
 
   void publish_mounted_paths(std::vector<mount> mounts);
 
-  void publish_started(uint64_t bag_id);
-  void publish_stopped(uint64_t bag_id, recording_metadata rm);
-  void publish_status(uint64_t bag_id, recording_status rs);
+  void publish_started(std::string bag_uuid, uint32_t trigger_id);
+  void publish_stopped(std::string bag_uuid, recording_metadata rm);
+  void publish_status(std::string bag_uuid, recording_status rs);
 
   void publish_uploaded(std::string data);
-
-  void publish_autostart(uint64_t recording_trigger_id);
 
   void publish_gateway_open();
   void publish_gateway_closed();
 
-  void set_record_callback(std::function<void (uint32_t, std::string, uint32_t, std::vector<recording_topic>)> cb);
+  void set_record_callback(std::function<void (std::string, std::string, uint32_t, std::vector<recording_topic>)> cb);
   void set_stop_callback(std::function<void ()> cb);
-  void set_upload_callback(std::function<void (uint32_t, std::string, std::vector<std::string>)> cb);
+  void set_upload_callback(std::function<void (std::string, std::string, std::vector<std::string>)> cb);
   void set_new_trigger_callback(std::function<void (recording_trigger)> cb);
   void set_gateway_callback(std::function<void (std::string)> cb);
   void set_gateway_close_callback(std::function<void ()> cb);
@@ -56,9 +54,9 @@ private:
   std::string robot_id_str_;
   std::string password_;
 
-  std::function<void (uint32_t, std::string, uint32_t, std::vector<recording_topic>)> on_record_;
+  std::function<void (std::string, std::string, uint32_t, std::vector<recording_topic>)> on_record_;
   std::function<void ()> on_stop_;
-  std::function<void (uint32_t, std::string, std::vector<std::string>)> on_upload_;
+  std::function<void (std::string, std::string, std::vector<std::string>)> on_upload_;
   std::function<void (recording_trigger)> on_new_trigger_;
   std::function<void (std::string)> on_gateway_;
   std::function<void ()> on_gateway_close_;

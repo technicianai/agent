@@ -32,6 +32,7 @@ add_executable(woeden_agent
   src/main.cpp
   src/recording_manager.cpp
   src/disk_monitor.cpp
+  src/recording_dto.cpp
   src/recording_trigger.cpp
   src/ros2_monitor.cpp
   src/mqtt_facade.cpp
@@ -39,7 +40,7 @@ add_executable(woeden_agent
   src/config.cpp
 )
 ament_target_dependencies(woeden_agent diagnostic_msgs rclcpp std_msgs)
-target_link_libraries(woeden_agent paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3)
+target_link_libraries(woeden_agent paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3 uuid)
 target_include_directories(woeden_agent PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 install(TARGETS woeden_agent
