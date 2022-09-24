@@ -124,21 +124,29 @@ void ros2_monitor::discover_topics()
     }
     if (known) continue;
 
-    topic* t = new topic{.name = topic_name, .type = topic_type, .message_count = 0, .triggers = new_topic_triggers};
-    topics_.push_back(t);
+    try {
+      topic* t = new topic{.name = topic_name, .type = topic_type, .message_count = 0, .triggers = new_topic_triggers};
+      topics_.push_back(t);
 
-    rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
-    if (topic_type == "std_msgs/msg/String") {
-      function<void (shared_ptr<std_msgs::msg::String>)> cb = bind(&ros2_monitor::json_trigger_callback, this, _1, t);
-      sub = create_subscription<std_msgs::msg::String>(topic_name, 10, cb);
-    } else if (topic_type == "diagnostic_msgs/msg/KeyValue") {
-      function<void (shared_ptr<diagnostic_msgs::msg::KeyValue>)> cb = bind(&ros2_monitor::key_value_trigger_callback, this, _1, t);
-      sub = create_subscription<diagnostic_msgs::msg::KeyValue>(topic_name, 10, cb);
-    } else {
-      function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
-      sub = create_generic_subscription(topic_name, topic_type, 10, cb);
-    }
-    subscriptions_.push_back(sub);
+      rclcpp::SubscriptionBase::SharedPtr sub = nullptr;
+      if (topic_type == "std_msgs/msg/String") {
+        function<void (shared_ptr<std_msgs::msg::String>)> cb = bind(&ros2_monitor::json_trigger_callback, this, _1, t);
+        sub = create_subscription<std_msgs::msg::String>(topic_name, 10, cb);
+      } else if (topic_type == "diagnostic_msgs/msg/KeyValue") {
+        function<void (shared_ptr<diagnostic_msgs::msg::KeyValue>)> cb = bind(&ros2_monitor::key_value_trigger_callback, this, _1, t);
+        sub = create_subscription<diagnostic_msgs::msg::KeyValue>(topic_name, 10, cb);
+      } else if (topic_type == "diagnostic_msgs/msg/DiagnosticStatus") {
+        function<void (shared_ptr<diagnostic_msgs::msg::DiagnosticStatus>)> cb = bind(&ros2_monitor::status_trigger_callback, this, _1, t);
+        sub = create_subscription<diagnostic_msgs::msg::DiagnosticStatus>(topic_name, 10, cb);
+      } else if (topic_type == "diagnostic_msgs/msg/DiagnosticArray") {
+        function<void (shared_ptr<diagnostic_msgs::msg::DiagnosticArray>)> cb = bind(&ros2_monitor::status_array_trigger_callback, this, _1, t);
+        sub = create_subscription<diagnostic_msgs::msg::DiagnosticArray>(topic_name, 10, cb);
+      } else {
+        function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
+        sub = create_generic_subscription(topic_name, topic_type, 10, cb);
+      }
+      subscriptions_.push_back(sub);
+    } catch (runtime_error& e) {}
   }
 }
 
@@ -164,7 +172,7 @@ void ros2_monitor::json_trigger_callback(shared_ptr<std_msgs::msg::String> msg, 
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
     nlohmann::json msg_data = nlohmann::json::parse(msg->data);
-    if (rt.in(msg_data) && rt.evaluate(msg_data)) {
+    if (rt.evaluate(msg_data)) {
       rm_->auto_start(rt);
     }
   }
@@ -174,7 +182,27 @@ void ros2_monitor::key_value_trigger_callback(shared_ptr<diagnostic_msgs::msg::K
 {
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
-    if (rt.in(msg) && rt.evaluate(msg)) {
+    if (rt.evaluate(msg)) {
+      rm_->auto_start(rt);
+    }
+  }
+}
+
+void ros2_monitor::status_trigger_callback(shared_ptr<diagnostic_msgs::msg::DiagnosticStatus> msg, topic* t)
+{
+  t->message_count++;
+  for (recording_trigger rt : t->triggers) {
+    if (rt.evaluate(msg)) {
+      rm_->auto_start(rt);
+    }
+  }
+}
+
+void ros2_monitor::status_array_trigger_callback(shared_ptr<diagnostic_msgs::msg::DiagnosticArray> msg, topic* t)
+{
+  t->message_count++;
+  for (recording_trigger rt : t->triggers) {
+    if (rt.evaluate(msg)) {
       rm_->auto_start(rt);
     }
   }

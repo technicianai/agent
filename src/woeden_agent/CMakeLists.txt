@@ -33,6 +33,9 @@ add_executable(woeden_agent
   src/recording_manager.cpp
   src/disk_monitor.cpp
   src/recording_dto.cpp
+  src/key_value_comparison.cpp
+  src/status_comparison.cpp
+  src/status_array_comparison.cpp
   src/recording_trigger.cpp
   src/ros2_monitor.cpp
   src/mqtt_facade.cpp
