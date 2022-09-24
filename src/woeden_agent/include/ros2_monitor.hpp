@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "diagnostic_msgs/msg/key_value.hpp"
 #include "std_msgs/msg/string.hpp"
 
@@ -34,6 +36,8 @@ private:
   void default_callback(std::shared_ptr<rclcpp::SerializedMessage> msg, topic* t);
   void json_trigger_callback(std::shared_ptr<std_msgs::msg::String> msg, topic* t);
   void key_value_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::KeyValue> msg, topic* t);
+  void status_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::DiagnosticStatus> msg, topic* t);
+  void status_array_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::DiagnosticArray> msg, topic* t);
   void gateway_cmd(std::string ec2_ip);
   void rosbridge_server_cmd();
 

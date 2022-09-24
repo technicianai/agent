@@ -1,5 +1,5 @@
-#ifndef config_H
-#define config_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include "recording_trigger.hpp"
 

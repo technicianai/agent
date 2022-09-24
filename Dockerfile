@@ -4,6 +4,7 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y \
     openssl \
     openssh-client \
+    ros-humble-ackermann-msgs \
     ros-humble-rosbridge-suite \
     uuid-dev
 
