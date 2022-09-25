@@ -36,6 +36,9 @@ int main(int argc, char * argv[])
   });
   facade->set_gateway_callback(bind(&ros2_monitor::open_gateway, r2m, _1));
   facade->set_gateway_close_callback(bind(&ros2_monitor::close_gateway, r2m));
+  facade->set_reconnect_callback(bind(&recording_manager::metadata_on_reconnect, rm));
+
+  facade->connect();
 
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(dm);

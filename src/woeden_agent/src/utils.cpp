@@ -34,4 +34,10 @@ string uuid()
   uuid_unparse(new_uuid, uuid_cstr);
   return string(uuid_cstr);
 }
+
+bool is_valid_uuid(string uuid)
+{
+  uuid_t placeholder;
+  return uuid_parse(uuid.c_str(), placeholder) > 0;
+}
 }
