@@ -14,6 +14,7 @@ namespace woeden
 {
 disk_monitor::disk_monitor(shared_ptr<mqtt_facade> facade) : Node("woeden_disk_monitor"), facade_(facade)
 {
+  sample();
   function<void ()> sample = bind(&disk_monitor::sample, this);
   timer_ = create_wall_timer(chrono::seconds(SAMPLING_INTERVAL), sample);
 }

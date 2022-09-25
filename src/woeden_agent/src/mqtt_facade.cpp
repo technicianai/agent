@@ -17,8 +17,9 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
   robot_id_str_ = to_string(robot_id);
   password_ = password;
   client_ = make_shared<mqtt::async_client>(host, robot_id_str_);
+  is_connected_ = false;
 
-  auto connect_options = mqtt::connect_options_builder() 
+  connect_options_ = mqtt::connect_options_builder() 
     .user_name(robot_id_str_)
     .password(password_)
     .keep_alive_interval(chrono::seconds(20))
@@ -37,20 +38,22 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("new_trigger"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
+    on_reconnect_();
   });
-
-  mqtt::token_ptr token_conn = client_->connect(connect_options);
-  token_conn->wait();
-
-  client_->start_consuming();
-
-  cout << "Successfully connected to Woeden. Actively monitoring." << endl;
 }
 
 mqtt_facade::~mqtt_facade()
 {
   client_->disconnect();
   client_.reset();
+}
+
+void mqtt_facade::connect()
+{
+  mqtt::token_ptr token_conn = client_->connect(connect_options_);
+  token_conn->wait();
+  client_->start_consuming();
+  is_connected_ = true;
 }
 
 void mqtt_facade::publish_alive()
@@ -124,7 +127,6 @@ void mqtt_facade::publish_stopped(string bag_uuid, recording_metadata rm)
   data["bag_uuid"] = bag_uuid;
   data["yaml"] = rm.metadata;
   data["size"] = rm.size;
-  data["trigger_id"] = rm.trigger_id;
   publish("stopped", data);
 }
 
@@ -162,10 +164,17 @@ void mqtt_facade::publish(string topic, nlohmann::json payload)
 void mqtt_facade::publish(string topic, const char* payload)
 {
   try {
-  mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload);
-  client_->publish(msg);
-  } catch (mqtt::exception& e) { 
-    cout << e.what() << endl; 
+    mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload);
+    client_->publish(msg);
+    if (!is_connected_) {
+      cout << "Successfully connected to Woeden. Actively monitoring." << endl; 
+      is_connected_ = true;
+    }
+  } catch (mqtt::exception& e) {
+    if (is_connected_) {
+      cout << "Disconnected from Woeden. Attempting to reconnect." << endl; 
+      is_connected_ = false;
+    }
   }
 }
 
@@ -245,5 +254,10 @@ void mqtt_facade::set_gateway_callback(function<void (string)> cb)
 void mqtt_facade::set_gateway_close_callback(function<void ()> cb)
 {
   on_gateway_close_ = cb;
+}
+
+void mqtt_facade::set_reconnect_callback(std::function<void ()> cb)
+{
+  on_reconnect_ = cb;
 }
 }

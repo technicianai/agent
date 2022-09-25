@@ -97,12 +97,14 @@ void recording_manager::stop()
   string metadata_path = bag_path_ + "/metadata.yaml";
   string metadata = load_metadata(metadata_path);
   metadata = remote_throttle_from_metadata(metadata);
+  if (trigger_id_ != NULL) {
+    metadata += "\ntrigger: " + to_string(trigger_id_);
+  }
   update_metadata(metadata_path, metadata);
 
   facade_->publish_stopped(bag_uuid_, {
     .metadata = metadata,
-    .size = bag_size(),
-    .trigger_id = trigger_id_
+    .size = bag_size()
   });
 
   timer_.reset();
@@ -257,5 +259,27 @@ void recording_manager::upload(string bag_uuid, string base_path, vector<string>
 
   thread thread_object(f);
   thread_object.detach();
+}
+
+void recording_manager::metadata_on_reconnect()
+{
+  for (mount& mnt : dm_->get_mounts()) {
+    string base_path = mnt.path + "/woeden/bags/";
+    if (filesystem::exists(base_path)) {
+      for (const auto& entry : filesystem::directory_iterator(base_path)) {
+        string path = entry.path().c_str();
+        if (filesystem::is_directory(path)) {
+          string metadata_path = path + "/metadata.yaml";
+          if (filesystem::exists(metadata_path)) {
+            string bag_uuid = path.substr(path.find_last_of("/\\") + 1);
+            facade_->publish_stopped(bag_uuid, {
+              .metadata = load_metadata(metadata_path),
+              .size = directory_size(path)
+            });
+          }
+        }
+      }
+    }
+  }
 }
 }

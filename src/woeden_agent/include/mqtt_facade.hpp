@@ -21,6 +21,7 @@ public:
   mqtt_facade(std::string host, uint64_t robot_id, std::string password);
   ~mqtt_facade();
 
+  void connect();
   void publish_alive();
   void publish_robot_config(robot_config rc);
   void publish_nodes(std::vector<node> nodes);
@@ -43,6 +44,7 @@ public:
   void set_new_trigger_callback(std::function<void (recording_trigger)> cb);
   void set_gateway_callback(std::function<void (std::string)> cb);
   void set_gateway_close_callback(std::function<void ()> cb);
+  void set_reconnect_callback(std::function<void ()> cb);
 
 private:
   void dispatch(mqtt::const_message_ptr msg);
@@ -51,6 +53,8 @@ private:
   std::string mqtt_topic(std::string suffix);
 
   mqtt::async_client_ptr client_;
+  mqtt::connect_options connect_options_;
+  bool is_connected_;
   std::string robot_id_str_;
   std::string password_;
 
@@ -60,6 +64,7 @@ private:
   std::function<void (recording_trigger)> on_new_trigger_;
   std::function<void (std::string)> on_gateway_;
   std::function<void ()> on_gateway_close_;
+  std::function<void ()> on_reconnect_;
 };
 }
 

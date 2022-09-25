@@ -16,6 +16,7 @@ namespace woeden
 std::string blocking_cmd(const char* cmd);
 
 std::string uuid();
+bool is_valid_uuid(std::string uuid);
 }
 
 #endif

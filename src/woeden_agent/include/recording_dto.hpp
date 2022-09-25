@@ -30,7 +30,6 @@ struct recording_metadata
 {
   std::string metadata;
   uintmax_t size;
-  uint32_t trigger_id;
 };
 }
 
