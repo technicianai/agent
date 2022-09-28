@@ -29,16 +29,19 @@ public:
   std::vector<recording_topic> get_record_topics();
   uint32_t get_duration();
   std::string get_base_path();
+  bool is_enabled();
 
   void set_key_value_comparison(key_value_comparison* kvc);
   void set_status_comparison(status_comparison* sc);
   void set_status_array_comparison(status_array_comparison* sac);
+  void set_enabled(bool enabled);
   
   bool evaluate(nlohmann::json data);
   bool evaluate(std::shared_ptr<diagnostic_msgs::msg::KeyValue> data);
   bool evaluate(std::shared_ptr<diagnostic_msgs::msg::DiagnosticStatus> data);
   bool evaluate(std::shared_ptr<diagnostic_msgs::msg::DiagnosticArray> data);
 
+  nlohmann::json to_reduced_json();
   nlohmann::json to_json();
   static recording_trigger from_json(nlohmann::json rt_json);
 

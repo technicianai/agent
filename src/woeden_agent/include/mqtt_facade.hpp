@@ -38,9 +38,12 @@ public:
   void publish_gateway_open();
   void publish_gateway_closed();
 
+  void publish_trigger_status(std::vector<recording_trigger> triggers);
+
   void set_record_callback(std::function<void (std::string, std::string, uint32_t, std::vector<recording_topic>)> cb);
   void set_stop_callback(std::function<void ()> cb);
   void set_upload_callback(std::function<void (std::string, std::string, std::vector<std::string>)> cb);
+  void set_update_trigger_callback(std::function<void (uint32_t, bool)> cb);
   void set_new_trigger_callback(std::function<void (recording_trigger)> cb);
   void set_gateway_callback(std::function<void (std::string)> cb);
   void set_gateway_close_callback(std::function<void ()> cb);
@@ -62,6 +65,7 @@ private:
   std::function<void ()> on_stop_;
   std::function<void (std::string, std::string, std::vector<std::string>)> on_upload_;
   std::function<void (recording_trigger)> on_new_trigger_;
+  std::function<void (uint32_t, bool)> on_update_trigger_;
   std::function<void (std::string)> on_gateway_;
   std::function<void ()> on_gateway_close_;
   std::function<void ()> on_reconnect_;

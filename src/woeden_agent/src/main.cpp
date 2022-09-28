@@ -34,9 +34,17 @@ int main(int argc, char * argv[])
     r2m->add_trigger(rt);
     c.add_trigger(rt);
   });
+  facade->set_update_trigger_callback([&c, r2m](uint32_t id, bool enabled) -> void {
+    r2m->update_trigger(id, enabled);
+    c.update_trigger(id, enabled);
+  });
   facade->set_gateway_callback(bind(&ros2_monitor::open_gateway, r2m, _1));
   facade->set_gateway_close_callback(bind(&ros2_monitor::close_gateway, r2m));
   facade->set_reconnect_callback(bind(&recording_manager::metadata_on_reconnect, rm));
+  facade->set_reconnect_callback([&c, rm, facade]() -> void {
+    rm->metadata_on_reconnect();
+    facade->publish_trigger_status(c.get_recording_triggers());
+  });
 
   facade->connect();
 
