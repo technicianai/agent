@@ -20,6 +20,7 @@ public:
   std::vector<recording_trigger> get_recording_triggers();
 
   void add_trigger(recording_trigger rt);
+  void update_trigger(uint32_t id, bool enabled);
 
 private:
   nlohmann::json load(std::string path);

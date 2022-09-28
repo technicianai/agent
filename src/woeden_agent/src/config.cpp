@@ -39,6 +39,17 @@ void config::add_trigger(recording_trigger rt)
   save(contents_, path_);
 }
 
+void config::update_trigger(uint32_t id, bool enabled)
+{
+  for (auto& trigger : contents_["triggers"]) {
+    if (id == trigger["id"].get<uint32_t>()) {
+      trigger["enabled"] = enabled;
+      save(contents_, path_);
+      break;
+    }
+  }
+}
+
 nlohmann::json config::load(string path)
 {
   ifstream config_file;

@@ -48,6 +48,11 @@ string recording_trigger::get_base_path()
   return base_path_;
 }
 
+bool recording_trigger::is_enabled()
+{
+  return enabled_;
+}
+
 void recording_trigger::set_key_value_comparison(key_value_comparison* kvc)
 {
   key_value_comparison_ = kvc;
@@ -61,6 +66,11 @@ void recording_trigger::set_status_comparison(status_comparison* sc)
 void recording_trigger::set_status_array_comparison(status_array_comparison* sac)
 {
   status_array_comparison_ = sac;
+}
+
+void recording_trigger::set_enabled(bool enabled)
+{
+  enabled_ = enabled;
 }
 
 bool recording_trigger::evaluate(nlohmann::json data)
@@ -81,6 +91,14 @@ bool recording_trigger::evaluate(shared_ptr<diagnostic_msgs::msg::DiagnosticStat
 bool recording_trigger::evaluate(shared_ptr<diagnostic_msgs::msg::DiagnosticArray> data)
 {
   return status_array_comparison_->evaluate(*data);
+}
+
+nlohmann::json recording_trigger::to_reduced_json()
+{
+  nlohmann::json json;
+  json["id"] = id_;
+  json["enabled"] = enabled_;
+  return json;
 }
 
 nlohmann::json recording_trigger::to_json()

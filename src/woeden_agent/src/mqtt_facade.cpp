@@ -38,6 +38,7 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("new_trigger"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("update_trigger"), 0, subOpts, props);
     on_reconnect_();
   });
 }
@@ -156,6 +157,15 @@ void mqtt_facade::publish_gateway_closed()
   publish("robot_gateway/closed", "");
 }
 
+void mqtt_facade::publish_trigger_status(vector<recording_trigger> triggers)
+{
+  nlohmann::json data = nlohmann::json::array();
+  for (recording_trigger rt : triggers) {
+    data.push_back(rt.to_reduced_json());
+  }
+  publish("triggers", data);
+}
+
 void mqtt_facade::publish(string topic, nlohmann::json payload)
 {
   publish(topic, payload.dump().c_str());
@@ -223,6 +233,11 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     on_gateway_(ec2_ip);
   } else if (topic == mqtt_topic("robot_gateway/close")) {
     on_gateway_close_();
+  } else if (topic == mqtt_topic("update_trigger")) {
+    nlohmann::json data = nlohmann::json::parse(payload);
+    uint32_t id = data["id"].get<uint32_t>();
+    bool enabled = data["enabled"].get<bool>();
+    on_update_trigger_(id, enabled);
   }
 }
 
@@ -244,6 +259,11 @@ void mqtt_facade::set_upload_callback(function<void (string, string, vector<stri
 void mqtt_facade::set_new_trigger_callback(function<void (recording_trigger)> cb)
 {
   on_new_trigger_ = cb;
+}
+
+void mqtt_facade::set_update_trigger_callback(function<void (uint32_t, bool)> cb)
+{
+  on_update_trigger_ = cb;
 }
 
 void mqtt_facade::set_gateway_callback(function<void (string)> cb)

@@ -33,6 +33,24 @@ void ros2_monitor::add_trigger(recording_trigger rt)
   unassigned_triggers_.push_back(rt);
 }
 
+void ros2_monitor::update_trigger(uint32_t id, bool enabled)
+{
+  for (recording_trigger& rt : unassigned_triggers_) {
+    if (id == rt.get_id()) {
+      rt.set_enabled(enabled);
+      return;
+    }
+  }
+  for (topic* t : topics_) {
+    for (recording_trigger& rt : t->triggers) {
+      if (id == rt.get_id()) {
+        rt.set_enabled(enabled);
+        return;
+      }
+    }
+  }
+}
+
 void ros2_monitor::discover_packages()
 {
   robot_config rc;
@@ -172,7 +190,7 @@ void ros2_monitor::json_trigger_callback(shared_ptr<std_msgs::msg::String> msg, 
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
     nlohmann::json msg_data = nlohmann::json::parse(msg->data);
-    if (rt.evaluate(msg_data)) {
+    if (rt.is_enabled() && rt.evaluate(msg_data)) {
       rm_->auto_start(rt);
     }
   }
@@ -182,7 +200,7 @@ void ros2_monitor::key_value_trigger_callback(shared_ptr<diagnostic_msgs::msg::K
 {
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
-    if (rt.evaluate(msg)) {
+    if (rt.is_enabled() && rt.evaluate(msg)) {
       rm_->auto_start(rt);
     }
   }
@@ -192,7 +210,7 @@ void ros2_monitor::status_trigger_callback(shared_ptr<diagnostic_msgs::msg::Diag
 {
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
-    if (rt.evaluate(msg)) {
+    if (rt.is_enabled() && rt.evaluate(msg)) {
       rm_->auto_start(rt);
     }
   }
@@ -202,7 +220,7 @@ void ros2_monitor::status_array_trigger_callback(shared_ptr<diagnostic_msgs::msg
 {
   t->message_count++;
   for (recording_trigger rt : t->triggers) {
-    if (rt.evaluate(msg)) {
+    if (rt.is_enabled() && rt.evaluate(msg)) {
       rm_->auto_start(rt);
     }
   }
