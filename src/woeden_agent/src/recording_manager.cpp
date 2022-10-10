@@ -30,7 +30,7 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
 void recording_manager::start(string bag_uuid, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
 {
   if (recording_) {
-    throw logic_error("already recording");
+    return;
   }
   bag_uuid_ = bag_uuid;
   base_path_ = base_path;
