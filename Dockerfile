@@ -37,7 +37,7 @@ COPY certs/ /woeden_agent/certs/
 COPY ros-entrypoint.sh /woeden_agent/
 
 ENV HOME /
-ENV HOST 3.140.168.45
+ENV HOST ssl://mqtt.woeden.com
 
 RUN rm -rf /woeden_agent/src/
 
