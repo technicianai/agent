@@ -19,12 +19,16 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
   client_ = make_shared<mqtt::async_client>(host, robot_id_str_);
   is_connected_ = false;
 
+  mqtt::ssl_options ssl_opts;
+  ssl_opts.set_trust_store("/woeden_agent/certs/isrgrootx1.pem");
+
   connect_options_ = mqtt::connect_options_builder() 
     .user_name(robot_id_str_)
     .password(password_)
     .keep_alive_interval(chrono::seconds(20))
     .automatic_reconnect(chrono::seconds(2), chrono::seconds(30))
     .clean_session()
+    .ssl(move(ssl_opts))
     .finalize();
 
   client_->set_message_callback(bind(&mqtt_facade::dispatch, this, placeholders::_1));
