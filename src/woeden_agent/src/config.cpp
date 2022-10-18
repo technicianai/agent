@@ -62,4 +62,30 @@ void config::save(nlohmann::json contents, string path)
   ofstream file(path);
   file << contents.dump();
 }
+
+always_record_config config::get_always_record()
+{
+  if (!contents_.contains("always_record")) {
+    return {
+      .duration = 0,
+      .enabled = false,
+      .base_path = "/"
+    };
+  }
+  return {
+    .duration = contents_["always_record"]["duration"].get<uint32_t>(),
+    .enabled = contents_["always_record"]["enabled"].get<bool>(),
+    .base_path = contents_["always_record"]["base_path"]
+  };
+}
+
+void config::update_always_record(uint32_t duration, bool enabled, string base_path)
+{
+  nlohmann::json json;
+  json["duration"] = duration;
+  json["enabled"] = enabled;
+  json["base_path"] = base_path;
+  contents_["always_record"] = json;
+  save(contents_, path_);
+}
 }

@@ -43,6 +43,7 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("robot_gateway"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("update_trigger"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("update_always_record"), 0, subOpts, props);
     on_reconnect_();
   });
 }
@@ -170,6 +171,15 @@ void mqtt_facade::publish_trigger_status(vector<recording_trigger> triggers)
   publish("triggers", data);
 }
 
+void mqtt_facade::publish_always_record_status(always_record_config arc)
+{
+  nlohmann::json data;
+  data["enabled"] = arc.enabled;
+  data["base_path"] = arc.base_path;
+  data["duration"] = arc.duration;
+  publish("always_record", data);
+}
+
 void mqtt_facade::publish(string topic, nlohmann::json payload)
 {
   publish(topic, payload.dump().c_str());
@@ -242,6 +252,12 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     uint32_t id = data["id"].get<uint32_t>();
     bool enabled = data["enabled"].get<bool>();
     on_update_trigger_(id, enabled);
+  } else if (topic == mqtt_topic("update_always_record")) {
+    nlohmann::json data = nlohmann::json::parse(payload);
+    bool enabled = data["enabled"].get<bool>();
+    uint32_t duration = data["duration"].get<uint32_t>();
+    string base_path = data["base_path"];
+    on_update_always_record_(duration, enabled, base_path);
   }
 }
 
@@ -268,6 +284,11 @@ void mqtt_facade::set_new_trigger_callback(function<void (recording_trigger)> cb
 void mqtt_facade::set_update_trigger_callback(function<void (uint32_t, bool)> cb)
 {
   on_update_trigger_ = cb;
+}
+
+void mqtt_facade::set_update_always_record_callback(std::function<void (uint32_t, bool, std::string)> cb)
+{
+  on_update_always_record_ = cb;
 }
 
 void mqtt_facade::set_gateway_callback(function<void (string)> cb)

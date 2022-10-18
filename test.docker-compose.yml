@@ -5,5 +5,10 @@ services:
     build:
       context: .
     network_mode: host
+    environment:
+      - HOST=localhost:1883
     volumes:
-      - ~/woeden:/woeden
+      - ./woeden:/woeden
+
+volumes:
+  woeden:

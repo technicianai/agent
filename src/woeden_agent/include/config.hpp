@@ -10,6 +10,13 @@
 
 namespace woeden
 {
+struct always_record_config
+{
+  uint32_t duration;
+  bool enabled;
+  std::string base_path;
+};
+
 class config
 {
 public:
@@ -18,9 +25,11 @@ public:
   uint32_t get_id();
   std::string get_password();
   std::vector<recording_trigger> get_recording_triggers();
+  always_record_config get_always_record();
 
   void add_trigger(recording_trigger rt);
   void update_trigger(uint32_t id, bool enabled);
+  void update_always_record(uint32_t duration, bool enabled, std::string base_path);
 
 private:
   nlohmann::json load(std::string path);
