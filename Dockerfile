@@ -5,7 +5,9 @@ RUN apt-get update && apt-get install -y \
     openssl \
     openssh-client \
     ros-humble-ackermann-msgs \
+    ros-humble-cv-bridge \
     ros-humble-rosbridge-suite \
+    ros-humble-vision-opencv \
     uuid-dev
 
 RUN mkdir downloads
@@ -31,7 +33,7 @@ RUN . /opt/ros/humble/setup.bash && colcon build --packages-select woeden_agent
 # RUN . /opt/ros/humble/setup.bash && colcon build
 
 COPY bag_utils/ /woeden_agent/bag_utils/
-RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip
+RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip imageio pandas
 
 COPY certs/ /woeden_agent/certs/
 COPY ros-entrypoint.sh /woeden_agent/

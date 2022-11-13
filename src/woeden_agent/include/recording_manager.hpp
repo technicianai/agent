@@ -34,6 +34,8 @@ public:
   void upload(std::string bag_uuid, std::string base_path, std::vector<std::string> urls);
   void metadata_on_reconnect();
 
+  void gif_upload(std::string bag_uuid, std::string base_path, std::string urls);
+
 private:
   void throttle_cmd(std::string topic, double frequency);
   void always_record_cmd(std::string bag_path);

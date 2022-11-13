@@ -42,6 +42,8 @@ public:
   void publish_trigger_status(std::vector<recording_trigger> triggers);
   void publish_always_record_status(always_record_config arc);
 
+  void publish_gif_uploaded(std::string bag_uuid);
+
   void set_record_callback(std::function<void (std::string, std::string, uint32_t, std::vector<recording_topic>)> cb);
   void set_stop_callback(std::function<void ()> cb);
   void set_upload_callback(std::function<void (std::string, std::string, std::vector<std::string>)> cb);
@@ -51,6 +53,7 @@ public:
   void set_gateway_callback(std::function<void (std::string)> cb);
   void set_gateway_close_callback(std::function<void ()> cb);
   void set_reconnect_callback(std::function<void ()> cb);
+  void set_gif_upload_callback(std::function<void (std::string, std::string, std::string)> cb);
 
 private:
   void dispatch(mqtt::const_message_ptr msg);
@@ -73,6 +76,7 @@ private:
   std::function<void (std::string)> on_gateway_;
   std::function<void ()> on_gateway_close_;
   std::function<void ()> on_reconnect_;
+  std::function<void (std::string, std::string, std::string)> on_gif_upload_;
 };
 }
 

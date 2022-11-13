@@ -50,6 +50,7 @@ int main(int argc, char * argv[])
     facade->publish_trigger_status(c.get_recording_triggers());
     facade->publish_always_record_status(c.get_always_record());
   });
+  facade->set_gif_upload_callback(bind(&recording_manager::gif_upload, rm, _1, _2, _3));
 
   facade->connect();
 

@@ -354,6 +354,20 @@ void recording_manager::metadata_on_reconnect()
   }
 }
 
+void recording_manager::gif_upload(string bag_uuid, string base_path, string urls)
+{
+  string command = "python3 /woeden_agent/bag_utils/gif.py ";
+  command += bag_uuid + " " + base_path + " '" + urls + "'";
+
+  auto f = [&, command, bag_uuid]() {
+    blocking_cmd(command.c_str());
+    facade_->publish_gif_uploaded(bag_uuid);
+  };
+
+  thread thread_object(f);
+  thread_object.detach();
+}
+
 void recording_manager::set_always_record(always_record_config arc)
 {
   if (arc.enabled && !always_record_config_.enabled) {

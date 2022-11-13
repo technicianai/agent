@@ -44,6 +44,7 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("update_trigger"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("update_always_record"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("gif/upload"), 0, subOpts, props);
     on_reconnect_();
   });
 }
@@ -180,6 +181,13 @@ void mqtt_facade::publish_always_record_status(always_record_config arc)
   publish("always_record", data);
 }
 
+void mqtt_facade::publish_gif_uploaded(string bag_uuid)
+{
+  nlohmann::json data;
+  data["bag_uuid"] = bag_uuid;
+  publish("gif/uploaded", data);
+}
+
 void mqtt_facade::publish(string topic, nlohmann::json payload)
 {
   publish(topic, payload.dump().c_str());
@@ -258,6 +266,12 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     uint32_t duration = data["duration"].get<uint32_t>();
     string base_path = data["base_path"];
     on_update_always_record_(duration, enabled, base_path);
+  } else if (topic == mqtt_topic("gif/upload")) {
+    nlohmann::json data = nlohmann::json::parse(payload);
+    string bag_uuid = data["bag_uuid"];
+    string base_path = data["base_path"];
+    string urls = data["urls"].dump();
+    on_gif_upload_(bag_uuid, base_path, urls);
   }
 }
 
@@ -286,7 +300,7 @@ void mqtt_facade::set_update_trigger_callback(function<void (uint32_t, bool)> cb
   on_update_trigger_ = cb;
 }
 
-void mqtt_facade::set_update_always_record_callback(std::function<void (uint32_t, bool, std::string)> cb)
+void mqtt_facade::set_update_always_record_callback(function<void (uint32_t, bool, string)> cb)
 {
   on_update_always_record_ = cb;
 }
@@ -301,8 +315,13 @@ void mqtt_facade::set_gateway_close_callback(function<void ()> cb)
   on_gateway_close_ = cb;
 }
 
-void mqtt_facade::set_reconnect_callback(std::function<void ()> cb)
+void mqtt_facade::set_reconnect_callback(function<void ()> cb)
 {
   on_reconnect_ = cb;
+}
+
+void mqtt_facade::set_gif_upload_callback(function<void (string, string, string)> cb)
+{
+  on_gif_upload_ = cb;
 }
 }
