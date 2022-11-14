@@ -23,19 +23,15 @@ RUN cd downloads && \
 
 WORKDIR /woeden_agent
 
-COPY src/topic_tools/ /woeden_agent/src/topic_tools/
+COPY src/ /woeden_agent/
 RUN . /opt/ros/humble/setup.bash && colcon build
-
-COPY src/woeden_agent/ /woeden_agent/src/woeden_agent/
-RUN . /opt/ros/humble/setup.bash && colcon build --packages-select woeden_agent
-
-# COPY src/ /woeden_agent/
-# RUN . /opt/ros/humble/setup.bash && colcon build
 
 COPY bag_utils/ /woeden_agent/bag_utils/
 RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip imageio pandas
 
 COPY certs/ /woeden_agent/certs/
+RUN chmod 400 /woeden_agent/certs/gateway.pem
+
 COPY ros-entrypoint.sh /woeden_agent/
 
 ENV HOME /

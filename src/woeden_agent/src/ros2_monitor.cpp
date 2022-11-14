@@ -235,11 +235,13 @@ void ros2_monitor::open_gateway(string ec2_ip)
 
   rosbridge_server_pid_ = fork();
   if (rosbridge_server_pid_ == 0) {
+    close(2);
     rosbridge_server_cmd();
   } else if (rosbridge_server_pid_ > 0) {
     gateway_pid_ = fork();
     if (gateway_pid_ == 0) {
       sleep(5);
+      close(2);
       gateway_cmd(ec2_ip);
     } else if (gateway_pid_ > 0) {
       gateway_open_ = true;
@@ -263,15 +265,13 @@ void ros2_monitor::close_gateway()
 void ros2_monitor::gateway_cmd(string ec2_ip)
 {
   string ec2_login = "ec2-user@" + ec2_ip;
-  char* args[9] = { "ssh", "-o", "StrictHostKeyChecking=no", "-i", "/woeden_agent/certs/gateway.pem", "-N", "-R", ":9090:localhost:9090", const_cast<char*>(ec2_login.c_str()) };
-  RCLCPP_INFO(get_logger(), "opening ssh tunnel");
+  char* args[10] = { "ssh", "-o", "StrictHostKeyChecking=no", "-i", "/woeden_agent/certs/gateway.pem", "-N", "-R", ":9090:localhost:9090", const_cast<char*>(ec2_login.c_str()), NULL };
   execvp("ssh", args);
 }
 
 void ros2_monitor::rosbridge_server_cmd()
 {
-  char* args[4] = { "ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml" };
-  RCLCPP_INFO(get_logger(), "starting rosbridge server");
+  char* args[5] = { "ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml", NULL };
   execvp("ros2", args);
 }
 }
