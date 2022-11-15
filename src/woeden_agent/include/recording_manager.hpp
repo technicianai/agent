@@ -31,7 +31,7 @@ public:
 
   void set_always_record(always_record_config arc);
 
-  void upload(std::string bag_uuid, std::string base_path, std::vector<std::string> urls);
+  void upload(std::string bag_uuid, std::string base_path, std::string urls);
   void metadata_on_reconnect();
 
   void gif_upload(std::string bag_uuid, std::string base_path, std::string urls);

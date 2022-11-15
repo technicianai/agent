@@ -236,14 +236,9 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     on_stop_();
   } else if (topic == mqtt_topic("upload")) {
     nlohmann::json data = nlohmann::json::parse(payload);
-
     string bag_uuid = data["bag_uuid"];
     string base_path = data["base_path"];
-    vector<string> urls;
-    for (auto& url : data["urls"]) {
-      urls.push_back(url.get<string>());
-    }
-
+    string urls = data["urls"].dump();
     on_upload_(bag_uuid, base_path, urls);
   } else if (topic == mqtt_topic("new_trigger")) {
     nlohmann::json data = nlohmann::json::parse(payload);
@@ -285,7 +280,7 @@ void mqtt_facade::set_stop_callback(function<void ()> cb)
   on_stop_ = cb;
 }
 
-void mqtt_facade::set_upload_callback(function<void (string, string, vector<string>)> cb)
+void mqtt_facade::set_upload_callback(function<void (string, string, string)> cb)
 {
   on_upload_ = cb;
 }

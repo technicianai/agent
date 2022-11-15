@@ -315,13 +315,10 @@ void recording_manager::status_check()
   });
 }
 
-void recording_manager::upload(string bag_uuid, string base_path, vector<string> urls)
+void recording_manager::upload(string bag_uuid, string base_path, string urls)
 {
   string command = "python3 /woeden_agent/bag_utils/upload.py ";
-  command += bag_uuid + " " + base_path + " ";
-  for (const string & url : urls) {
-    command += "\"" + url + "\" ";
-  }
+  command += bag_uuid + " " + base_path + " '" + urls + "'";
 
   auto f = [&, command]() {
     string result = blocking_cmd(command.c_str());
