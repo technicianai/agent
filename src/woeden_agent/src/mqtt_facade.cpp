@@ -57,10 +57,22 @@ mqtt_facade::~mqtt_facade()
 
 void mqtt_facade::connect()
 {
-  mqtt::token_ptr token_conn = client_->connect(connect_options_);
-  token_conn->wait();
-  client_->start_consuming();
-  is_connected_ = true;
+  bool failed_once = false;
+  while (!is_connected_) {
+    try {
+      mqtt::token_ptr token_conn = client_->connect(connect_options_);
+      token_conn->wait();
+      client_->start_consuming();
+      is_connected_ = true;
+    } catch (mqtt::exception& e) {
+      if (!failed_once) {
+        cout << "Failed to establish a connection to Woeden. Actively retrying. Reason: ";
+        cout << e.what();
+        cout << endl;
+        failed_once = true;
+      }
+    }
+  }
 }
 
 void mqtt_facade::publish_alive()
@@ -204,7 +216,9 @@ void mqtt_facade::publish(string topic, const char* payload)
     }
   } catch (mqtt::exception& e) {
     if (is_connected_) {
-      cout << "Disconnected from Woeden. Attempting to reconnect." << endl; 
+      cout << "Disconnected from Woeden. Attempting to reconnect. Reason: ";
+      cout << e.what();
+      cout << endl;
       is_connected_ = false;
     }
   }
