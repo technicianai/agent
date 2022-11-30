@@ -21,7 +21,7 @@ class recording_trigger
 {
 public:
   recording_trigger(uint32_t id, std::string topic, std::string type, bool enabled, 
-    std::vector<recording_topic> record_topics, uint32_t duration, std::string base_path);
+    std::vector<recording_topic> record_topics, uint32_t duration, std::string base_path, std::string msgdef);
 
   uint32_t get_id();
   std::string get_topic();
@@ -30,6 +30,7 @@ public:
   uint32_t get_duration();
   std::string get_base_path();
   bool is_enabled();
+  std::string get_msgdef();
 
   void set_key_value_comparison(key_value_comparison* kvc);
   void set_status_comparison(status_comparison* sc);
@@ -56,6 +57,7 @@ private:
   std::vector<recording_topic> record_topics_;
   uint32_t duration_;
   std::string base_path_;
+  std::string msgdef_;
 };
 }
 

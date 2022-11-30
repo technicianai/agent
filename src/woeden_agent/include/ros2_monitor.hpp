@@ -1,6 +1,8 @@
 #ifndef ROS2_MONITOR_H
 #define ROS2_MONITOR_H
 
+#include "interfaces/srv/custom_trigger.hpp"
+#include "interfaces/srv/record.hpp"
 #include "mqtt_facade.hpp"
 #include "recording_manager.hpp"
 #include "ros2_dto.hpp"
@@ -29,6 +31,7 @@ public:
   void open_gateway(std::string ec2_ip);
   void close_gateway();
   void push_trigger_to_python_node(std::string blob);
+  void custom_trigger_fired(const std::shared_ptr<interfaces::srv::Record::Request> request, std::shared_ptr<interfaces::srv::Record::Response> response);
 
 private:
   void discover_packages();
@@ -47,7 +50,8 @@ private:
   std::shared_ptr<recording_manager> rm_;
 
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr to_python_publisher_;
+  rclcpp::Client<interfaces::srv::CustomTrigger>::SharedPtr client_;
+  rclcpp::Service<interfaces::srv::Record>::SharedPtr service_; 
 
   std::vector<node> nodes_;
   std::vector<topic*> topics_;

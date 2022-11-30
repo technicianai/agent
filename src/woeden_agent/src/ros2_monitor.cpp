@@ -27,7 +27,9 @@ ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, shared_ptr<recording_
 
   gateway_open_ = false;
 
-  to_python_publisher_ = this->create_publisher<std_msgs::msg::String>("__WOEDEN_TRIGGER", 10);
+  client_ = this->create_client<interfaces::srv::CustomTrigger>("custom_trigger");
+
+  service_ = this->create_service<interfaces::srv::Record>("record", bind(&ros2_monitor::custom_trigger_fired, this, _1, _2));
 }
 
 void ros2_monitor::add_trigger(recording_trigger rt)
@@ -164,6 +166,11 @@ void ros2_monitor::discover_topics()
       } else {
         function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
         sub = create_generic_subscription(topic_name, topic_type, 10, cb);
+        for (recording_trigger& rt : t->triggers) {
+          auto request = std::make_shared<interfaces::srv::CustomTrigger::Request>();
+          request->data = rt.to_json().dump();
+          client_->async_send_request(request);
+        }
       }
       subscriptions_.push_back(sub);
     } catch (runtime_error& e) {}
@@ -277,10 +284,28 @@ void ros2_monitor::rosbridge_server_cmd()
   execvp("ros2", args);
 }
 
-void ros2_monitor::push_trigger_to_python_node(std::string blob)
+void ros2_monitor::custom_trigger_fired(const std::shared_ptr<interfaces::srv::Record::Request> request, std::shared_ptr<interfaces::srv::Record::Response> response)
 {
-  auto message = std_msgs::msg::String();
-  message.data = blob;
-  to_python_publisher_->publish(message);
+  for (recording_trigger& rt : unassigned_triggers_) {
+    if (rt.get_id() == request->trigger_id) {
+      if (rt.is_enabled()) {
+        rm_->auto_start(rt);
+      }
+      response->success = true;
+      return;
+    }
+  }
+  for (topic* t : topics_) {
+    for (recording_trigger& rt : t->triggers) {
+      if (rt.get_id() == request->trigger_id) {
+        if (rt.is_enabled()) {
+          rm_->auto_start(rt);
+        }
+        response->success = true;
+        return;
+      }
+    }
+  }
+  response->success = false;
 }
 }

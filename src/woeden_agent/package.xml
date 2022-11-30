@@ -11,6 +11,7 @@
 
   <depend>PahoMqtt</depend>
   <depend>diagnostic_msgs</depend>
+  <depend>interfaces</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

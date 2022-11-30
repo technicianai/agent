@@ -7,7 +7,7 @@ using namespace std;
 namespace woeden
 {
 recording_trigger::recording_trigger(uint32_t id, string topic, string type,
-  bool enabled, vector<recording_topic> record_topics, uint32_t duration, string base_path)
+  bool enabled, vector<recording_topic> record_topics, uint32_t duration, string base_path, string msgdef)
 {
   id_ = id;
   topic_ = topic;
@@ -16,6 +16,7 @@ recording_trigger::recording_trigger(uint32_t id, string topic, string type,
   record_topics_ = record_topics;
   duration_ = duration;
   base_path_ = base_path;
+  msgdef_ = msgdef;
 }
 
 uint32_t recording_trigger::get_id()
@@ -110,6 +111,7 @@ nlohmann::json recording_trigger::to_json()
   rt_json["enabled"] = enabled_;
   rt_json["duration"] = duration_;
   rt_json["base_path"] = base_path_;
+  rt_json["msg_def"] = msgdef_;
 
   nlohmann::json topics;
   for (recording_topic& record_topic : record_topics_) {
@@ -137,6 +139,11 @@ recording_trigger recording_trigger::from_json(nlohmann::json rt_json)
 
   string type = rt_json["type"].get<string>();
 
+  string msgdef = "";
+  if (rt_json.contains("msgdef")) {
+    msgdef = rt_json["msgdef"].get<string>();
+  }
+
   recording_trigger rt = recording_trigger(
     rt_json["id"].get<uint64_t>(),
     rt_json["topic"].get<string>(),
@@ -144,7 +151,8 @@ recording_trigger recording_trigger::from_json(nlohmann::json rt_json)
     rt_json["enabled"].get<bool>(),
     record_topics,
     rt_json["duration"].get<uint32_t>(),
-    rt_json["base_path"].get<string>()
+    rt_json["base_path"].get<string>(),
+    msgdef
   );
 
   nlohmann::json comp = rt_json["comparison"];
