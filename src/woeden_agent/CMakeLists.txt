@@ -28,6 +28,8 @@ find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(SQLite3 REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+find_package(rclpy REQUIRED)
 
 add_executable(woeden_agent
   src/main.cpp
@@ -43,12 +45,21 @@ add_executable(woeden_agent
   src/utils.cpp
   src/config.cpp
 )
+
+ament_python_install_package(${PROJECT_NAME})
+install(PROGRAMS
+  woeden_agent/trigger_worker.py 
+  woeden_agent/test_trigger_worker.py 
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_target_dependencies(woeden_agent
   diagnostic_msgs
   interfaces
   rclcpp
   std_msgs
 )
+
 target_link_libraries(woeden_agent
   paho-mqttpp3
   nlohmann_json::nlohmann_json
@@ -58,6 +69,7 @@ target_link_libraries(woeden_agent
 target_include_directories(woeden_agent
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
 
 install(TARGETS woeden_agent
   DESTINATION lib/${PROJECT_NAME}
