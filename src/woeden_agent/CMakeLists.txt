@@ -26,6 +26,7 @@ find_package(diagnostic_msgs REQUIRED)
 find_package(interfaces REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(ament_cmake_python REQUIRED)
@@ -48,8 +49,8 @@ add_executable(woeden_agent
 
 ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
-  woeden_agent/trigger_worker.py 
-  woeden_agent/test_trigger_worker.py 
+  woeden_agent/trigger_worker.py
+  woeden_agent/test_trigger_worker.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -69,7 +70,6 @@ target_link_libraries(woeden_agent
 target_include_directories(woeden_agent
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-
 
 install(TARGETS woeden_agent
   DESTINATION lib/${PROJECT_NAME}

@@ -111,7 +111,7 @@ nlohmann::json recording_trigger::to_json()
   rt_json["enabled"] = enabled_;
   rt_json["duration"] = duration_;
   rt_json["base_path"] = base_path_;
-  rt_json["msg_def"] = msgdef_;
+  rt_json["msgdef"] = msgdef_;
 
   nlohmann::json topics;
   for (recording_topic& record_topic : record_topics_) {
@@ -119,12 +119,12 @@ nlohmann::json recording_trigger::to_json()
   }
   rt_json["topics"] = topics;
 
-  if (type_ == "std_msgs/msg/String" || type_ == "diagnostic_msgs/msg/KeyValue") {
-    rt_json["comparison"] = key_value_comparison_->to_json();
-  } else if (type_ == "diagnostic_msgs/msg/DiagnosticStatus") {
+  if (type_ == "diagnostic_msgs/msg/DiagnosticStatus") {
     rt_json["comparison"] = status_comparison_->to_json();
   } else if (type_ == "diagnostic_msgs/msg/DiagnosticArray") {
     rt_json["comparison"] = status_array_comparison_->to_json();
+  } else {
+    rt_json["comparison"] = key_value_comparison_->to_json();
   }
 
   return rt_json;
@@ -156,15 +156,15 @@ recording_trigger recording_trigger::from_json(nlohmann::json rt_json)
   );
 
   nlohmann::json comp = rt_json["comparison"];
-  if (type == "std_msgs/msg/String" || type == "diagnostic_msgs/msg/KeyValue") {
-    key_value_comparison* kvc = key_value_comparison::from_json(comp);
-    rt.set_key_value_comparison(kvc);
-  } else if (type == "diagnostic_msgs/msg/DiagnosticStatus") {
+  if (type == "diagnostic_msgs/msg/DiagnosticStatus") {
     status_comparison* sc = status_comparison::from_json(comp);
     rt.set_status_comparison(sc);
   } else if (type == "diagnostic_msgs/msg/DiagnosticArray") {
     status_array_comparison* sac = status_array_comparison::from_json(comp);
     rt.set_status_array_comparison(sac);
+  } else {
+    key_value_comparison* kvc = key_value_comparison::from_json(comp);
+    rt.set_key_value_comparison(kvc);
   }
 
   return rt;
