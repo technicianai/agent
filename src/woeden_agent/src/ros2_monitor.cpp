@@ -27,7 +27,7 @@ ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, shared_ptr<recording_
 
   gateway_open_ = false;
 
-  client_ = this->create_client<interfaces::srv::CustomTrigger>("custom_trigger");
+  client_ = this->create_client<interfaces::srv::CustomTrigger>("/custom_trigger");
 
   service_ = this->create_service<interfaces::srv::Record>("record", bind(&ros2_monitor::custom_trigger_fired, this, _1, _2));
 }
@@ -168,6 +168,7 @@ void ros2_monitor::discover_topics()
         sub = create_generic_subscription(topic_name, topic_type, 10, cb);
         for (recording_trigger& rt : t->triggers) {
           auto request = std::make_shared<interfaces::srv::CustomTrigger::Request>();
+          RCLCPP_INFO(get_logger(), rt.to_json().dump().c_str());
           request->data = rt.to_json().dump();
           client_->async_send_request(request);
         }
@@ -192,6 +193,7 @@ void ros2_monitor::sample_topic_freqs()
 void ros2_monitor::default_callback(shared_ptr<rclcpp::SerializedMessage> msg, topic* t)
 {
   t->message_count++;
+
 }
 
 void ros2_monitor::json_trigger_callback(shared_ptr<std_msgs::msg::String> msg, topic* t)
