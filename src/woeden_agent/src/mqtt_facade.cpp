@@ -256,8 +256,12 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     on_upload_(bag_uuid, base_path, urls);
   } else if (topic == mqtt_topic("new_trigger")) {
     nlohmann::json data = nlohmann::json::parse(payload);
-    recording_trigger rt = recording_trigger::from_json(data);
-    on_new_trigger_(rt);
+    string topic_type = data["type"];
+    if (topic_type == "std_msgs/msg/String" || topic_type == "diagnostic_msgs/msg/KeyValue" || topic_type == "diagnostic_msgs/msg/DiagnosticStatus" || topic_type == "diagnostic_msgs/msg/DiagnosticArray") {
+      recording_trigger rt = recording_trigger::from_json(data);
+      on_new_trigger_(rt);
+    }
+    on_new_trigger_custom_msg_(data.dump());
   } else if (topic == mqtt_topic("robot_gateway")) {
     nlohmann::json data = nlohmann::json::parse(payload);
     string ec2_ip = data["ec2_ip"].get<string>();
@@ -332,5 +336,10 @@ void mqtt_facade::set_reconnect_callback(function<void ()> cb)
 void mqtt_facade::set_gif_upload_callback(function<void (string, string, string)> cb)
 {
   on_gif_upload_ = cb;
+}
+
+void mqtt_facade::set_new_trigger_custom_msg_callback(function<void (string)> cb)
+{
+  on_new_trigger_custom_msg_ = cb;
 }
 }
