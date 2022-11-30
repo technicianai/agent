@@ -1,0 +1,11 @@
+launch:
+
+# - node:
+    # pkg: "woeden_agent"
+    # exec: "woeden_agent"
+    # name: "woeden_agent"
+
+- node:
+    pkg: "woeden_agent"
+    exec: "trigger_worker"
+    name: "trigger_worker"
