@@ -23,6 +23,7 @@ FetchContent_MakeAvailable(paho-mqtt-cpp json)
 
 find_package(ament_cmake REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
+find_package(interfaces REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -42,9 +43,21 @@ add_executable(woeden_agent
   src/utils.cpp
   src/config.cpp
 )
-ament_target_dependencies(woeden_agent diagnostic_msgs rclcpp std_msgs)
-target_link_libraries(woeden_agent paho-mqttpp3 nlohmann_json::nlohmann_json SQLite::SQLite3 uuid)
-target_include_directories(woeden_agent PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ament_target_dependencies(woeden_agent
+  diagnostic_msgs
+  interfaces
+  rclcpp
+  std_msgs
+)
+target_link_libraries(woeden_agent
+  paho-mqttpp3
+  nlohmann_json::nlohmann_json
+  SQLite::SQLite3
+  uuid
+)
+target_include_directories(woeden_agent
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 install(TARGETS woeden_agent
   DESTINATION lib/${PROJECT_NAME}
