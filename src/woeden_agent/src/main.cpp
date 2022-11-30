@@ -51,6 +51,7 @@ int main(int argc, char * argv[])
     facade->publish_always_record_status(c.get_always_record());
   });
   facade->set_gif_upload_callback(bind(&recording_manager::gif_upload, rm, _1, _2, _3));
+  facade->set_new_trigger_custom_msg_callback(bind(&ros2_monitor::push_trigger_to_python_node, r2m, _1));
 
   facade->connect();
 

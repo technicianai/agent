@@ -26,6 +26,8 @@ ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, shared_ptr<recording_
   topics_freq_timer_ = this->create_wall_timer(chrono::seconds(SAMPLING_INTERVAL), topics_freq_cb);
 
   gateway_open_ = false;
+
+  to_python_publisher_ = this->create_publisher<std_msgs::msg::String>("__WOEDEN_TRIGGER", 10);
 }
 
 void ros2_monitor::add_trigger(recording_trigger rt)
@@ -273,5 +275,12 @@ void ros2_monitor::rosbridge_server_cmd()
 {
   char* args[5] = { "ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml", NULL };
   execvp("ros2", args);
+}
+
+void ros2_monitor::push_trigger_to_python_node(std::string blob)
+{
+  auto message = std_msgs::msg::String();
+  message.data = blob;
+  to_python_publisher_->publish(message);
 }
 }

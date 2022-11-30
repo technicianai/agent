@@ -28,6 +28,7 @@ public:
   void update_trigger(uint32_t id, bool enabled);
   void open_gateway(std::string ec2_ip);
   void close_gateway();
+  void push_trigger_to_python_node(std::string blob);
 
 private:
   void discover_packages();
@@ -46,6 +47,7 @@ private:
   std::shared_ptr<recording_manager> rm_;
 
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr to_python_publisher_;
 
   std::vector<node> nodes_;
   std::vector<topic*> topics_;
