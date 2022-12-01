@@ -5,9 +5,7 @@ from importlib.util import module_from_spec, spec_from_loader
 import importlib
 import json
 import sys
-from typing import List
-from typing import Any
-
+from typing import Any, List
 
 # ROS deps
 import rclpy
@@ -17,6 +15,7 @@ from sensor_msgs.msg import Range
 
 # rosbags deps
 from rosbags.typesys import get_types_from_msg, register_types
+from rosbags.serde import deserialize_cdr
 
 # custom types
 from interfaces.srv import CustomTrigger, Record
@@ -38,6 +37,7 @@ class Topic:
         _name = str(obj.get("name"))
         _type = str(obj.get("type"))
         return Topic(_frequency, _max_frequency, _name, _type)
+
 
 @dataclass
 class KeyValue:
@@ -68,6 +68,7 @@ class Comparison:
         _name = str(obj.get("name"))
         return Comparison(_key_values, _levels, _name)
 
+
 @dataclass
 class Trigger:
     base_path: str # where the triggered bag is stored
@@ -94,6 +95,7 @@ class Trigger:
 
         return Trigger(_base_path, _comparison, _duration, _enabled, _id, _topic, _type, _msgdef, _topics)
 
+
 @dataclass
 class Triggers:
     triggers: List[Trigger]
@@ -102,42 +104,59 @@ class Triggers:
         return Triggers(obj.get("triggers"))
 
 
-
 class WoedenTriggerWorker(Node):
     def __init__(self):
         super().__init__("woeden_trigger_worker")
         self.srv = self.create_service(CustomTrigger, "/custom_trigger", self.triggers_callback)
-        self.get_logger().info("trigger worker node running")
         self.bytes_sub = self.create_subscription(WrappedBytes, "/woeden", self.bytes_callback, 10)
-        self.topic_handlers = dict()
+        self.handlers = dict()
+        self.client = self.create_client(Record, 'record')
 
     def triggers_callback(self, request, response):
         trigger_dict = json.loads(request.data)
         trigger = Trigger.from_dict(trigger_dict)
 
         if trigger.enabled:
-            if trigger.topic not in self.topic_handlers:
+            if trigger.topic not in self.handlers:
                 msg_cls = self.load_class(trigger.id, trigger.msgdef)
-                self.add_handler(trigger.topic, trigger.id, msg_cls)
+                self.add_handler(trigger.topic, trigger, msg_cls)
         response.success = True
         return response
 
 
     def load_class(self, trigger_id, msgdef):
         register_types(get_types_from_msg(msgdef, f'woeden_msgs/msg/Trigger{trigger_id}'))
-        exec(f"from rosbags.typesys.types import woeden_msgs__msg__Trigger{trigger_id} as Trigger{trigger_id}")
-        # might need to delete woeden_msgs part
-        module = importlib.import_module(f"rosbags.typesys.types.woeden_msgs__msg__Trigger{trigger_id}")
-        return getattr(module, f"woeden_msgs__msg__Trigger{trigger_id}")
+        module = importlib.import_module(f"rosbags.typesys.types")
+        trigger_cls =  getattr(module, f"woeden_msgs__msg__Trigger{trigger_id}")
+        return trigger_cls
 
-    def add_handler(self, trigger.topic, trigger.id, msg_cls):
+    def add_handler(self, topic, trigger, msg_cls):
+        def rgetattr(obj, attr):
+            def _getattr(obj, attr):
+                return getattr(obj, attr)
+            return functools.reduce(_getattr, [obj] + attr.split('.'))
+
         def partial_handler(deserialization_func, byte_array):
             msg_instance = deserialization_func(byte_array)
-            print(msg_instance.__name__)
-            print(msg_instance.__class__)
+            value = rgetattr(msg_instance, trigger.comparison.field)
 
-        serdes_func = None # retrieve this
-        self.handlers[trigger.topic] = functools.partial(partial_handler, serdes_func)
+            comparator = trigger.comparison.comparator
+            trigger_val = trigger.comparison.value
+
+            if trigger.comparison.value_type == 'NUMBER':
+                value = float(value)
+                trigger_val = float(trigger_val)
+            
+            fired = (comparator == 'EQUAL_TO' and value == trigger_val) or \
+                    (comparator == 'LESS_THAN' and value < trigger_val) or \
+                    (comparator == 'GREATER_THAN' and value > trigger_val)
+            if fired:
+                self.req = Record.Request()
+                self.req.trigger_id = trigger.id
+                self.client.call_async(self.req)
+
+        serdes_func = lambda raw_data: deserialize_cdr(raw_data, msg_cls.__msgtype__)
+        self.handlers[topic] = functools.partial(partial_handler, serdes_func)
 
     def bytes_callback(self, wrapped_bytes):
         handler = self.handlers.get(wrapped_bytes.topic)
@@ -145,20 +164,10 @@ class WoedenTriggerWorker(Node):
             handler(wrapped_bytes.contents)
 
 
-
-
-
-
 def main(args=None):
     rclpy.init(args=args)
-
     minimal_subscriber = WoedenTriggerWorker()
-
     rclpy.spin(minimal_subscriber)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     minimal_subscriber.destroy_node()
     rclpy.shutdown()
 

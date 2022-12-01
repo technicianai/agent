@@ -17,7 +17,7 @@ int main(int argc, char * argv[])
   rclcpp::init(argc, argv);
 
   string host = getenv("HOST");
-  string home = "/home/alec";
+  string home = getenv("HOME");
 
   config c(home);
 

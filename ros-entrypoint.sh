@@ -9,4 +9,5 @@ if [[ ! -f "/woeden/config" ]]; then
 fi
 mkdir -p /woeden/bags
 
-ros2 run woeden_agent woeden_agent
+ros2 run woeden_agent woeden_agent &
+ros2 run woeden_agent trigger_worker.py
