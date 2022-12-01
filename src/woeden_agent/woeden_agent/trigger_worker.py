@@ -1,19 +1,26 @@
 #! /usr/bin/env python3
+from dataclasses import dataclass
 import functools
 from importlib.util import module_from_spec, spec_from_loader
+import importlib
 import json
 import sys
+from typing import List
+from typing import Any
 
+
+# ROS deps
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 from sensor_msgs.msg import Range
 
-from interfaces.srv import CustomTrigger, Record
+# rosbags deps
+from rosbags.typesys import get_types_from_msg, register_types
 
-from typing import List
-from typing import Any
-from dataclasses import dataclass
+# custom types
+from interfaces.srv import CustomTrigger, Record
+from interfaces.msg import WrappedBytes
 
 
 @dataclass
@@ -100,45 +107,42 @@ class WoedenTriggerWorker(Node):
     def __init__(self):
         super().__init__("woeden_trigger_worker")
         self.srv = self.create_service(CustomTrigger, "/custom_trigger", self.triggers_callback)
-        self.registered_types = set()
-        self.trigger_subs = []
-        self.callbacks = dict()
         self.get_logger().info("trigger worker node running")
-
-
+        self.bytes_sub = self.create_subscription(WrappedBytes, "/woeden", self.bytes_callback, 10)
+        self.topic_handlers = dict()
 
     def triggers_callback(self, request, response):
         trigger_dict = json.loads(request.data)
         trigger = Trigger.from_dict(trigger_dict)
 
         if trigger.enabled:
-            if trigger.type not in self.registered_types:
+            if trigger.topic not in self.topic_handlers:
                 msg_cls = self.load_class(trigger.id, trigger.msgdef)
-                self.add_subscription(trigger.topic, trigger.id, msg_cls)
+                self.add_handler(trigger.topic, trigger.id, msg_cls)
         response.success = True
         return response
 
 
     def load_class(self, trigger_id, msgdef):
-        custom_module_name = 'woeden.usertypes'
-        spec = spec_from_loader(custom_module_name, loader=None)
-        assert spec
-        module = module_from_spec(spec)
-        sys.modules[custom_module_name] = module
-        exec(msgdef, module.__dict__)  # pylint: disable=exec-used
-        return getattr(module, f"Trigger{trigger_id}")
-    
-    def topic_callback(self, msg):
-        print('kek')
+        register_types(get_types_from_msg(msgdef, f'woeden_msgs/msg/Trigger{trigger_id}'))
+        exec(f"from rosbags.typesys.types import woeden_msgs__msg__Trigger{trigger_id} as Trigger{trigger_id}")
+        # might need to delete woeden_msgs part
+        module = importlib.import_module(f"rosbags.typesys.types.woeden_msgs__msg__Trigger{trigger_id}")
+        return getattr(module, f"woeden_msgs__msg__Trigger{trigger_id}")
 
-    def add_subscription(self, topic, trigger_id, msg_cls):
-        # def callback_template(cls, msg):
-        #     del cls
-        #     print(f"received message {msg.__class__}")
+    def add_handler(self, trigger.topic, trigger.id, msg_cls):
+        def partial_handler(deserialization_func, byte_array):
+            msg_instance = deserialization_func(byte_array)
+            print(msg_instance.__name__)
+            print(msg_instance.__class__)
 
-        # callback = functools.partial(callback_template, self
+        serdes_func = None # retrieve this
+        self.handlers[trigger.topic] = functools.partial(partial_handler, serdes_func)
 
-        self.trigger_subs.append(self.create_subscription(msg_cls, "/range", self.topic_callback, 10, raw=True))
+    def bytes_callback(self, wrapped_bytes):
+        handler = self.handlers.get(wrapped_bytes.topic)
+        if handler:
+            handler(wrapped_bytes.contents)
 
 
 
