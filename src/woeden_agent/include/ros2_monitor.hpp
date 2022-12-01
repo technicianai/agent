@@ -1,6 +1,7 @@
 #ifndef ROS2_MONITOR_H
 #define ROS2_MONITOR_H
 
+#include "interfaces/msg/wrapped_bytes.hpp"
 #include "interfaces/srv/custom_trigger.hpp"
 #include "interfaces/srv/record.hpp"
 #include "mqtt_facade.hpp"
@@ -52,6 +53,7 @@ private:
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
   rclcpp::Client<interfaces::srv::CustomTrigger>::SharedPtr client_;
   rclcpp::Service<interfaces::srv::Record>::SharedPtr service_; 
+  rclcpp::Publisher<interfaces::msg::WrappedBytes>::SharedPtr publisher_;
 
   std::vector<node> nodes_;
   std::vector<topic*> topics_;

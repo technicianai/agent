@@ -30,6 +30,8 @@ ros2_monitor::ros2_monitor(shared_ptr<mqtt_facade> facade, shared_ptr<recording_
   client_ = this->create_client<interfaces::srv::CustomTrigger>("/custom_trigger");
 
   service_ = this->create_service<interfaces::srv::Record>("record", bind(&ros2_monitor::custom_trigger_fired, this, _1, _2));
+
+  publisher_ = this->create_publisher<interfaces::msg::WrappedBytes>("/woeden", 10);
 }
 
 void ros2_monitor::add_trigger(recording_trigger rt)
@@ -193,7 +195,14 @@ void ros2_monitor::sample_topic_freqs()
 void ros2_monitor::default_callback(shared_ptr<rclcpp::SerializedMessage> msg, topic* t)
 {
   t->message_count++;
+  if (t->name == "/woeden") return;
 
+  auto message = interfaces::msg::WrappedBytes();
+  auto serialized_message = msg->get_rcl_serialized_message();
+  vector<unsigned char> contents(serialized_message.buffer, serialized_message.buffer + serialized_message.buffer_length);
+  message.contents = contents;
+  message.topic = t->name;
+  publisher_->publish(message);
 }
 
 void ros2_monitor::json_trigger_callback(shared_ptr<std_msgs::msg::String> msg, topic* t)
