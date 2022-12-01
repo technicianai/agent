@@ -1,9 +1,12 @@
 #! /usr/bin/env python3
+from collections import defaultdict
 from dataclasses import dataclass
 import functools
 from importlib.util import module_from_spec, spec_from_loader
 import importlib
+import logging
 import json
+import os
 import sys
 from typing import Any, List
 
@@ -109,7 +112,7 @@ class WoedenTriggerWorker(Node):
         super().__init__("woeden_trigger_worker")
         self.srv = self.create_service(CustomTrigger, "/custom_trigger", self.triggers_callback)
         self.bytes_sub = self.create_subscription(WrappedBytes, "/woeden", self.bytes_callback, 10)
-        self.handlers = dict()
+        self.handlers = defaultdict(dict)
         self.client = self.create_client(Record, 'record')
 
     def triggers_callback(self, request, response):
@@ -117,9 +120,8 @@ class WoedenTriggerWorker(Node):
         trigger = Trigger.from_dict(trigger_dict)
 
         if trigger.enabled:
-            if trigger.topic not in self.handlers:
-                msg_cls = self.load_class(trigger.id, trigger.msgdef)
-                self.add_handler(trigger.topic, trigger, msg_cls)
+            msg_cls = self.load_class(trigger.id, trigger.msgdef)
+            self.add_handler(trigger.topic, trigger, msg_cls)
         response.success = True
         return response
 
@@ -156,12 +158,13 @@ class WoedenTriggerWorker(Node):
                 self.client.call_async(self.req)
 
         serdes_func = lambda raw_data: deserialize_cdr(raw_data, msg_cls.__msgtype__)
-        self.handlers[topic] = functools.partial(partial_handler, serdes_func)
+        self.handlers[topic][trigger.id] = functools.partial(partial_handler, serdes_func)
 
     def bytes_callback(self, wrapped_bytes):
-        handler = self.handlers.get(wrapped_bytes.topic)
-        if handler:
-            handler(wrapped_bytes.contents)
+        handlers = self.handlers.get(wrapped_bytes.topic)
+        if handlers:
+            for handler in handlers.values():
+                handler(wrapped_bytes.contents)
 
 
 def main(args=None):
