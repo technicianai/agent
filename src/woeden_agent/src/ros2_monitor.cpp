@@ -140,6 +140,9 @@ void ros2_monitor::discover_topics()
         vector<recording_trigger> topic_triggers = t->triggers;
         for (recording_trigger& rt : new_topic_triggers) {
           t->triggers.push_back(rt);
+          auto request = std::make_shared<interfaces::srv::CustomTrigger::Request>();
+          request->data = rt.to_json().dump();
+          client_->async_send_request(request);
         }
         known = true;
       }
