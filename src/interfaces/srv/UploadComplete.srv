@@ -1,0 +1,4 @@
+string bag_uuid
+uint32 chunks
+---
+bool success

@@ -13,6 +13,7 @@
 #include <string.h>
 
 using namespace std;
+using namespace placeholders;
 
 namespace woeden
 {
@@ -20,7 +21,7 @@ static int sql_callback(void *NotUsed, int argc, char **argv, char **azColName) 
    return 0;
 }
 
-recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade, always_record_config arc) : Node("woeden_recording_manager"), facade_(facade)
+recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade, always_record_config arc, double max_bandwidth) : Node("woeden_recording_manager"), facade_(facade)
 {
   dm_ = dm;
   recording_ = false;
@@ -28,9 +29,13 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
   trigger_id_ = NULL;
   always_record_turn_ = true;
   always_record_config_ = arc;
+  max_bandwidth_ = max_bandwidth;
   if (arc.enabled) {
     start_always_record();
   }
+  upload_client_ = this->create_client<interfaces::srv::Upload>("/upload_bag");
+  upload_subscription_ = this->create_subscription<interfaces::msg::UploadBytes>("upload_chunks", 10, bind(&recording_manager::upload_bytes, this, _1));
+  upload_complete_ = this->create_service<interfaces::srv::UploadComplete>("/upload_complete", bind(&recording_manager::upload_complete, this, _1, _2));
 }
 
 void recording_manager::start(string bag_uuid, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
@@ -315,18 +320,22 @@ void recording_manager::status_check()
   });
 }
 
-void recording_manager::upload(string bag_uuid, string base_path, string urls)
+void recording_manager::upload(string bag_uuid, string base_path)
 {
-  string command = "python3 /woeden_agent/bag_utils/upload.py ";
-  command += bag_uuid + " " + base_path + " '" + urls + "'";
+  auto request = std::make_shared<interfaces::srv::Upload::Request>();
+  request->bag_uuid = bag_uuid;
+  request->base_path = base_path;
+  request->max_bandwidth = max_bandwidth_;
 
-  auto f = [&, command]() {
-    string result = blocking_cmd(command.c_str());
-    facade_->publish_uploaded(result);
-  };
+  while (!upload_client_->wait_for_service(1s)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+      return;
+    }
+  }
 
-  thread thread_object(f);
-  thread_object.detach();
+  auto result = upload_client_->async_send_request(request);
+  result.wait();
 }
 
 void recording_manager::metadata_on_reconnect()
@@ -437,5 +446,23 @@ void recording_manager::annihilate_recording(pid_t pid, string bag_path)
 {
   kill(pid, SIGKILL);
   filesystem::remove_all(bag_path);
+}
+
+void recording_manager::set_max_bandwidth(double bw)
+{
+  max_bandwidth_ = bw;
+}
+
+void recording_manager::upload_bytes(shared_ptr<interfaces::msg::UploadBytes> msg)
+{
+  const void * data = msg->contents.data();
+  int length = msg->contents.size();
+  facade_->publish_chunk(msg->bag_uuid, msg->index, data, length);
+}
+
+void recording_manager::upload_complete(shared_ptr<interfaces::srv::UploadComplete::Request> request, shared_ptr<interfaces::srv::UploadComplete::Response> response)
+{
+  facade_->publish_upload_complete(request->bag_uuid, request->chunks);
+  response->success = true;
 }
 }

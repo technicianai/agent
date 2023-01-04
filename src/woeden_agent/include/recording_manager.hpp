@@ -8,6 +8,10 @@
 #include "recording_trigger.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+#include "interfaces/msg/upload_bytes.hpp"
+#include "interfaces/srv/upload.hpp"
+#include "interfaces/srv/upload_complete.hpp"
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -21,7 +25,7 @@ namespace woeden
 class recording_manager : public rclcpp::Node
 {
 public:
-  recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade, always_record_config arc);
+  recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade, always_record_config arc, double max_bandwidth);
 
   void start(std::string bag_uuid, std::string base_path, uint32_t duration, std::vector<recording_topic> recording_topics);
   void auto_start(recording_trigger rt);
@@ -31,10 +35,12 @@ public:
 
   void set_always_record(always_record_config arc);
 
-  void upload(std::string bag_uuid, std::string base_path, std::string urls);
+  void upload(std::string bag_uuid, std::string base_path);
   void metadata_on_reconnect();
 
   void gif_upload(std::string bag_uuid, std::string base_path, std::string urls);
+
+  void set_max_bandwidth(double bw);
 
 private:
   void throttle_cmd(std::string topic, double frequency);
@@ -44,6 +50,8 @@ private:
   void stop_always_record();
   void always_record();
   void annihilate_recording(pid_t pid, std::string bag_path);
+  void upload_bytes(std::shared_ptr<interfaces::msg::UploadBytes> msg);
+  void upload_complete(std::shared_ptr<interfaces::srv::UploadComplete::Request> request, std::shared_ptr<interfaces::srv::UploadComplete::Response> response);
 
   void remote_throttle_from_db(const char* db3_path);
   std::string load_metadata(std::string metadata_path);
@@ -90,8 +98,14 @@ private:
   rclcpp::TimerBase::SharedPtr auto_stop_timer_;
   rclcpp::TimerBase::SharedPtr always_record_timer_;
 
+  rclcpp::Client<interfaces::srv::Upload>::SharedPtr upload_client_;
+  rclcpp::Subscription<interfaces::msg::UploadBytes>::SharedPtr upload_subscription_;
+  rclcpp::Service<interfaces::srv::UploadComplete>::SharedPtr upload_complete_;
+
   std::shared_ptr<disk_monitor> dm_;
   std::shared_ptr<mqtt_facade> facade_;
+
+  double max_bandwidth_;
 
   const int SAMPLING_INTERVAL = 1;
 };

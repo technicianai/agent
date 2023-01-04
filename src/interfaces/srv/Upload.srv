@@ -1,0 +1,5 @@
+string bag_uuid
+string base_path
+float64 max_bandwidth
+---
+bool success

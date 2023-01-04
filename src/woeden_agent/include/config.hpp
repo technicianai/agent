@@ -26,10 +26,12 @@ public:
   std::string get_password();
   std::vector<recording_trigger> get_recording_triggers();
   always_record_config get_always_record();
+  double get_max_bandwidth();
 
   void add_trigger(recording_trigger rt);
   void update_trigger(uint32_t id, bool enabled);
   void update_always_record(uint32_t duration, bool enabled, std::string base_path);
+  void update_max_bandwidth(double bandwidth);
 
 private:
   nlohmann::json load(std::string path);
