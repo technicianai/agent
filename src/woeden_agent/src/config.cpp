@@ -88,4 +88,18 @@ void config::update_always_record(uint32_t duration, bool enabled, string base_p
   contents_["always_record"] = json;
   save(contents_, path_);
 }
+
+double config::get_max_bandwidth()
+{
+  if (!contents_.contains("max_bandwidth")) {
+    return 13107200; // 100 megabits in bytes
+  }
+  return contents_["max_bandwidth"].get<double>();
+}
+
+void config::update_max_bandwidth(double bandwidth)
+{
+  contents_["max_bandwidth"] = bandwidth;
+  save(contents_, path_);
+}
 }

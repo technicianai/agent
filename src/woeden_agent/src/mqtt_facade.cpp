@@ -45,6 +45,7 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("update_trigger"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("update_always_record"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("gif/upload"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("update_max_bandwidth"), 0, subOpts, props);
     on_reconnect_();
   });
 }
@@ -193,11 +194,31 @@ void mqtt_facade::publish_always_record_status(always_record_config arc)
   publish("always_record", data);
 }
 
+void mqtt_facade::publish_max_bandwidth_status(double max_bandwidth)
+{
+  publish("max_bandwidth", to_string(max_bandwidth).c_str());
+}
+
 void mqtt_facade::publish_gif_uploaded(string bag_uuid)
 {
   nlohmann::json data;
   data["bag_uuid"] = bag_uuid;
   publish("gif/uploaded", data);
+}
+
+void mqtt_facade::publish_chunk(string bag_uuid, uint32_t index, const void * contents, size_t len)
+{
+  string topic = "bag/" + bag_uuid + "/upload/" + to_string(index);
+  publish(topic, contents, len);
+}
+
+void mqtt_facade::publish_upload_complete(string bag_uuid, uint32_t num_chunks)
+{
+  nlohmann::json data;
+  data["bag_uuid"] = bag_uuid;
+  data["num_chunks"] = num_chunks;
+  string topic = "bag/" + bag_uuid + "/upload/complete";
+  publish(topic, data);
 }
 
 void mqtt_facade::publish(string topic, nlohmann::json payload)
@@ -209,6 +230,25 @@ void mqtt_facade::publish(string topic, const char* payload)
 {
   try {
     mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload);
+    client_->publish(msg);
+    if (!is_connected_) {
+      cout << "Successfully connected to Woeden. Actively monitoring." << endl; 
+      is_connected_ = true;
+    }
+  } catch (mqtt::exception& e) {
+    if (is_connected_) {
+      cout << "Disconnected from Woeden. Attempting to reconnect. Reason: ";
+      cout << e.what();
+      cout << endl;
+      is_connected_ = false;
+    }
+  }
+}
+
+void mqtt_facade::publish(string topic, const void* payload, size_t len)
+{
+  try {
+    mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload, len);
     client_->publish(msg);
     if (!is_connected_) {
       cout << "Successfully connected to Woeden. Actively monitoring." << endl; 
@@ -252,8 +292,7 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     nlohmann::json data = nlohmann::json::parse(payload);
     string bag_uuid = data["bag_uuid"];
     string base_path = data["base_path"];
-    string urls = data["urls"].dump();
-    on_upload_(bag_uuid, base_path, urls);
+    on_upload_(bag_uuid, base_path);
   } else if (topic == mqtt_topic("new_trigger")) {
     nlohmann::json data = nlohmann::json::parse(payload);
     recording_trigger rt = recording_trigger::from_json(data);
@@ -281,6 +320,8 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     string base_path = data["base_path"];
     string urls = data["urls"].dump();
     on_gif_upload_(bag_uuid, base_path, urls);
+  } else if (topic == mqtt_topic("update_max_bandwidth")) {
+    on_update_max_bandwidth_(stod(payload));
   }
 }
 
@@ -294,7 +335,7 @@ void mqtt_facade::set_stop_callback(function<void ()> cb)
   on_stop_ = cb;
 }
 
-void mqtt_facade::set_upload_callback(function<void (string, string, string)> cb)
+void mqtt_facade::set_upload_callback(function<void (string, string)> cb)
 {
   on_upload_ = cb;
 }
@@ -332,5 +373,10 @@ void mqtt_facade::set_reconnect_callback(function<void ()> cb)
 void mqtt_facade::set_gif_upload_callback(function<void (string, string, string)> cb)
 {
   on_gif_upload_ = cb;
+}
+
+void mqtt_facade::set_update_max_bandwidth_callback(function<void (double)> cb)
+{
+  on_update_max_bandwidth_ = cb;
 }
 }

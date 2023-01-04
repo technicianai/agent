@@ -10,8 +10,11 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/WrappedBytes.msg"
+  "msg/UploadBytes.msg"
   "srv/Record.srv"
   "srv/CustomTrigger.srv"
+  "srv/Upload.srv"
+  "srv/UploadComplete.srv"
 )
 
 ament_package()

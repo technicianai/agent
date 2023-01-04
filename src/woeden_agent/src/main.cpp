@@ -24,12 +24,12 @@ int main(int argc, char * argv[])
   auto facade = make_shared<mqtt_facade>(host, c.get_id(), c.get_password());
 
   auto dm = make_shared<disk_monitor>(facade);
-  auto rm = make_shared<recording_manager>(dm, facade, c.get_always_record());
+  auto rm = make_shared<recording_manager>(dm, facade, c.get_always_record(), c.get_max_bandwidth());
   auto r2m = make_shared<ros2_monitor>(facade, rm, c.get_recording_triggers());
 
   facade->set_record_callback(bind(&recording_manager::start, rm, _1, _2, _3, _4));
   facade->set_stop_callback(bind(&recording_manager::stop, rm));
-  facade->set_upload_callback(bind(&recording_manager::upload, rm, _1, _2, _3));
+  facade->set_upload_callback(bind(&recording_manager::upload, rm, _1, _2));
   facade->set_new_trigger_callback([&c, r2m](recording_trigger rt) -> void {
     r2m->add_trigger(rt);
     c.add_trigger(rt);
@@ -49,8 +49,13 @@ int main(int argc, char * argv[])
     rm->metadata_on_reconnect();
     facade->publish_trigger_status(c.get_recording_triggers());
     facade->publish_always_record_status(c.get_always_record());
+    facade->publish_max_bandwidth_status(c.get_max_bandwidth());
   });
   facade->set_gif_upload_callback(bind(&recording_manager::gif_upload, rm, _1, _2, _3));
+  facade->set_update_max_bandwidth_callback([&c, rm](double max_bw) -> void {
+    rm->set_max_bandwidth(max_bw);
+    c.update_max_bandwidth(max_bw);
+  });
 
   facade->connect();
 

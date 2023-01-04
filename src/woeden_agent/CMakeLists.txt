@@ -50,6 +50,7 @@ add_executable(woeden_agent
 ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   woeden_agent/trigger_worker.py
+  woeden_agent/upload_worker.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
