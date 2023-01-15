@@ -37,7 +37,7 @@ class WoedenUploadWorker(Node):
 
         i = 0
         chunk_size = int(request.max_bandwidth)
-        for chunk in stream_zip(self.unzipped_files(request.base_path, request.bag_uuid), chunk_size=chunk_size):
+        for chunk in self.bytes_generator(request.base_path, request.bag_uuid, chunk_size):
             msg = UploadBytes()
             msg.contents = chunk
             msg.index = i
@@ -54,17 +54,16 @@ class WoedenUploadWorker(Node):
         self.client.call_async(self.req)        
         self.is_uploading = False
 
-    def unzipped_files(self, base_path, bag_uuid):
+    def bytes_generator(self, base_path, bag_uuid, chunk_size):
         modified_at = datetime.now()
         perms = 0o600
-        path = f'{base_path}/woeden/bags/{bag_uuid}'
+        path = f'{base_path}/woeden/bags/{bag_uuid}.bag'
 
-        def get_bytes(file):
-            with open(f'{path}/{file}', 'rb') as f:
-                yield f.read()
-
-        for file in os.listdir(path):
-            yield file, modified_at, perms, ZIP_64, get_bytes(file)
+        with open(path, 'rb') as f:
+            data = f.read(chunk_size)
+            while data:
+                yield data
+                data = f.read(chunk_size)
 
 def main(args=None):
     rclpy.init(args=args)

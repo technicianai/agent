@@ -170,7 +170,7 @@ void ros2_monitor::discover_topics()
         sub = create_subscription<diagnostic_msgs::msg::DiagnosticArray>(topic_name, 10, cb);
       } else {
         function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
-        // sub = create_generic_subscription(topic_name, topic_type, 10, cb);
+        sub = create_generic_subscription(topic_name, topic_type, 10, cb);
         for (recording_trigger& rt : t->triggers) {
           auto request = std::make_shared<interfaces::srv::CustomTrigger::Request>();
           request->data = rt.to_json().dump();
@@ -299,6 +299,7 @@ void ros2_monitor::rosbridge_server_cmd()
 
 void ros2_monitor::custom_trigger_fired(const std::shared_ptr<interfaces::srv::Record::Request> request, std::shared_ptr<interfaces::srv::Record::Response> response)
 {
+  RCLCPP_INFO(get_logger(), "trigger fired in c++");
   for (recording_trigger& rt : unassigned_triggers_) {
     if (rt.get_id() == request->trigger_id) {
       if (rt.is_enabled()) {

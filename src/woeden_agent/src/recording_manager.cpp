@@ -45,7 +45,7 @@ void recording_manager::start(string bag_uuid, string base_path, uint32_t durati
   }
   bag_uuid_ = bag_uuid;
   base_path_ = base_path;
-  bag_path_ = base_path_ + "/woeden/bags/" + bag_uuid_;
+  bag_path_ = base_path_ + "/woeden/bags/" + bag_uuid_ + ".bag";
 
   for (const recording_topic & rt : recording_topics) {
     if (rt.throttle) {
@@ -140,6 +140,7 @@ void recording_manager::stop()
     throw logic_error("only the parent can stop recording");
   }
 
+  timer_.reset();
   stopping_ = true;
 
   kill(recording_pid_, SIGINT);
@@ -147,29 +148,33 @@ void recording_manager::stop()
     int pgid = getpgid(pid);
     killpg(pgid, SIGKILL);
   }
+
+  // char* args[4] = { "rosnode", "kill", "/trigger_bag", NULL };
+  // if (fork() > 0) {
+  //   execvp("rosnode", args);
+  // }
   sleep(10);
 
-  for (const auto & entry : filesystem::directory_iterator(bag_path_)) {
-    string db_path = entry.path().string();
-    if (db_path.find(".db3") != string::npos) {
-      remote_throttle_from_db(db_path.c_str());
-    }
-  }
+  // for (const auto & entry : filesystem::directory_iterator(bag_path_)) {
+  //   string db_path = entry.path().string();
+  //   if (db_path.find(".db3") != string::npos) {
+  //     remote_throttle_from_db(db_path.c_str());
+  //   }
+  // }
 
-  string metadata_path = bag_path_ + "/metadata.yaml";
-  string metadata = load_metadata(metadata_path);
-  metadata = remote_throttle_from_metadata(metadata);
-  if (trigger_id_ != NULL) {
-    metadata += "\ntrigger: " + to_string(trigger_id_);
-  }
-  update_metadata(metadata_path, metadata);
-
+  // string metadata_path = bag_path_ + "/metadata.yaml";
+  // string metadata = load_metadata(metadata_path);
+  // metadata = remote_throttle_from_metadata(metadata);
+  // if (trigger_id_ != NULL) {
+  //   metadata += "\ntrigger: " + to_string(trigger_id_);
+  // }
+  // update_metadata(metadata_path, metadata);
+  string metadata = load_metadata(bag_path_);
   facade_->publish_stopped(bag_uuid_, {
     .metadata = metadata,
     .size = bag_size()
   });
 
-  timer_.reset();
   recording_ = false;
   stopping_ = false;
   trigger_id_ = NULL;
@@ -225,28 +230,29 @@ void recording_manager::always_record_cmd(string bag_path)
 
 void recording_manager::record_cmd(string bag_path, vector<recording_topic> recording_topics)
 {
-  char* args[recording_topics.size() + 8] = { "ros2", "bag", "record" };
-  int i = 3;
+  // char* args[recording_topics.size() + 6] = { "rosbag", "record", "__name:=trigger_bag"};
+  char* args[6] = { "rosbag", "record", "__name:=trigger_bag"};
+  int i = 2;
 
-  for (const recording_topic & rt : recording_topics) {
-    string topic_str = rt.name;
-    if (rt.throttle) {
-      topic_str += "/throttle";
-    }
-    const char* name = topic_str.c_str();
-    args[i] = (char*) malloc(strlen(name)+1);
-    strcpy(args[i++], name);
-  }
+  // for (const recording_topic & rt : recording_topics) {
+  //   string topic_str = rt.name;
+  //   if (rt.throttle) {
+  //     topic_str += "/throttle";
+  //   }
+  //   const char* name = topic_str.c_str();
+  //   args[i] = (char*) malloc(strlen(name)+1);
+  //   strcpy(args[i++], name);
+  // }
 
-  args[i++] = "-o";
+  args[i++] = "-O";
   args[i++] = const_cast<char*>(bag_path.c_str());
 
-  args[i++] = "--max-bag-size";
-  args[i++] = "1050000000"; // ~0.98GB
+  // args[i++] = "--max-bag-size";
+  // args[i++] = "1050000000"; // ~0.98GB
 
   args[i++] = NULL;
 
-  execvp("ros2", args);
+  execvp("rosbag", args);
 }
 
 void recording_manager::remote_throttle_from_db(const char* db_path)
@@ -260,26 +266,19 @@ void recording_manager::remote_throttle_from_db(const char* db_path)
 
 uintmax_t recording_manager::bag_size()
 {
-  return directory_size(bag_path_);
+  return bag_size(bag_path_);
 }
 
-uintmax_t recording_manager::directory_size(string path)
+uintmax_t recording_manager::bag_size(string bag_path)
 {
-  uintmax_t size = 0;
-  for (const filesystem::directory_entry& f : filesystem::recursive_directory_iterator(path)) {
-    if (filesystem::is_regular_file(f.path())) {
-      size += filesystem::file_size(f.path());
-    }
-  }
-  return size;
+  return filesystem::file_size(bag_path);
 }
 
-string recording_manager::load_metadata(string metadata_path)
+string recording_manager::load_metadata(string path)
 {
-  ifstream t(metadata_path);
-  stringstream buffer;
-  buffer << t.rdbuf();
-  return buffer.str();
+  string cmd = "rosbag info -y " + path;
+  string output = blocking_cmd(cmd.c_str());
+  return output;
 }
 
 string recording_manager::remote_throttle_from_metadata(string metadata)
@@ -307,7 +306,8 @@ void recording_manager::status_check()
   }
 
   previous_size_ = size_;
-  size_ = bag_size();
+  string active_path = bag_path_ + ".active";
+  size_ = bag_size(active_path);
 
   double rate = (size_ - previous_size_) / SAMPLING_INTERVAL;
   double eta = rate > 0 ? (double) remaining / rate : 0;
@@ -345,15 +345,13 @@ void recording_manager::metadata_on_reconnect()
     if (filesystem::exists(base_path)) {
       for (const auto& entry : filesystem::directory_iterator(base_path)) {
         string path = entry.path().c_str();
-        if (filesystem::is_directory(path)) {
-          string metadata_path = path + "/metadata.yaml";
-          if (filesystem::exists(metadata_path)) {
-            string bag_uuid = path.substr(path.find_last_of("/\\") + 1);
-            facade_->publish_stopped(bag_uuid, {
-              .metadata = load_metadata(metadata_path),
-              .size = directory_size(path)
-            });
-          }
+        if (!filesystem::is_directory(path)) {
+          string metadata = load_metadata(path);
+          string bag_uuid = path.substr(path.find_last_of("/\\") + 1);
+          facade_->publish_stopped(bag_uuid, {
+            .metadata = metadata,
+            .size = filesystem::file_size(path)
+          });
         }
       }
     }
@@ -362,16 +360,18 @@ void recording_manager::metadata_on_reconnect()
 
 void recording_manager::gif_upload(string bag_uuid, string base_path, string urls)
 {
-  string command = "python3 /woeden_agent/bag_utils/gif.py ";
-  command += bag_uuid + " " + base_path + " '" + urls + "'";
+  // DO NOTHING
 
-  auto f = [&, command, bag_uuid]() {
-    blocking_cmd(command.c_str());
-    facade_->publish_gif_uploaded(bag_uuid);
-  };
+  // string command = "python3 /woeden_agent/bag_utils/gif.py ";
+  // command += bag_uuid + " " + base_path + " '" + urls + "'";
 
-  thread thread_object(f);
-  thread_object.detach();
+  // auto f = [&, command, bag_uuid]() {
+  //   blocking_cmd(command.c_str());
+  //   facade_->publish_gif_uploaded(bag_uuid);
+  // };
+
+  // thread thread_object(f);
+  // thread_object.detach();
 }
 
 void recording_manager::set_always_record(always_record_config arc)
@@ -412,7 +412,7 @@ void recording_manager::stop_always_record()
 void recording_manager::always_record()
 {
   string bag_uuid = uuid();
-  string always_record_bag_path = always_record_config_.base_path + "/woeden/bags/" + bag_uuid;
+  string always_record_bag_path = always_record_config_.base_path + "/woeden/bags/" + bag_uuid + ".bag";
   pid_t always_record_pid = fork();
 
   if (always_record_pid == 0) {

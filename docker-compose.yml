@@ -4,11 +4,16 @@ services:
   woeden_agent:
     build:
       context: .
-    network_mode: host
+      dockerfile: Dockerfile
+    # network_mode: host
     environment:
-      - HOST=localhost:1883
+      - HOST=ssl://mqtt.woeden.com
     volumes:
-      - ./woeden:/woeden
+      - ~/woeden:/woeden
+  ros1:
+    build:
+      context: ./
+      dockerfile: ros1.Dockerfile
 
 volumes:
   woeden:

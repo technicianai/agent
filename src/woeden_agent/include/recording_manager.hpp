@@ -32,6 +32,7 @@ public:
   void stop();
   bool is_recording();
   uintmax_t bag_size();
+  uintmax_t bag_size(std::string bag_path);
 
   void set_always_record(always_record_config arc);
 

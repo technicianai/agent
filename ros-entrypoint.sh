@@ -1,6 +1,10 @@
 #!/bin/bash
 
-. /opt/ros/humble/setup.bash
+unset ROS_DISTRO
+source "/opt/ros/noetic/setup.bash" --
+
+unset ROS_DISTRO
+. /opt/ros/foxy/setup.bash
 . install/setup.bash
 
 if [[ ! -f "/woeden/config" ]]; then
@@ -11,4 +15,5 @@ mkdir -p /woeden/bags
 
 ros2 run woeden_agent woeden_agent &
 ros2 run woeden_agent trigger_worker.py &
-ros2 run woeden_agent upload_worker.py
+ros2 run woeden_agent upload_worker.py &
+ros2 run ros1_bridge dynamic_bridge --bridge-all-topics
