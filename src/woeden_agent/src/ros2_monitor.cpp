@@ -1,6 +1,8 @@
 #include "ros2_monitor.hpp"
 #include "utils.hpp"
 
+#include "rosbag2_cpp/typesupport_helpers.hpp"
+
 #include <chrono>
 #include <sstream>
 
@@ -168,7 +170,7 @@ void ros2_monitor::discover_topics()
         sub = create_subscription<diagnostic_msgs::msg::DiagnosticArray>(topic_name, 10, cb);
       } else {
         function<void (shared_ptr<rclcpp::SerializedMessage>)> cb = bind(&ros2_monitor::default_callback, this, _1, t);
-        sub = create_generic_subscription(topic_name, topic_type, 10, cb);
+        // sub = create_generic_subscription(topic_name, topic_type, 10, cb);
         for (recording_trigger& rt : t->triggers) {
           auto request = std::make_shared<interfaces::srv::CustomTrigger::Request>();
           request->data = rt.to_json().dump();
@@ -318,5 +320,22 @@ void ros2_monitor::custom_trigger_fired(const std::shared_ptr<interfaces::srv::R
     }
   }
   response->success = false;
+}
+
+shared_ptr<rosbag2_transport::GenericSubscription> ros2_monitor::create_generic_subscription(string topic, string type, rclcpp::QoS qos, function<void(shared_ptr<rclcpp::SerializedMessage>)> cb)
+{
+  auto library_generic_subscriptor = rosbag2_cpp::get_typesupport_library(type, "rosidl_typesupport_cpp");
+  auto type_support= rosbag2_cpp::get_typesupport_handle(type, "rosidl_typesupport_cpp", library_generic_subscriptor);
+  auto sub = shared_ptr<rosbag2_transport::GenericSubscription>();
+
+  try {
+    auto sub = std::shared_ptr<rosbag2_transport::GenericSubscription>(new rosbag2_transport::GenericSubscription{get_node_base_interface().get(), *type_support, topic, qos, cb});
+    get_node_topics_interface()->add_subscription(sub, nullptr);
+    return sub;
+  } catch (const std::runtime_error & ex) { 
+    // LOG SOMETHING
+  }
+
+  return  nullptr;
 }
 }

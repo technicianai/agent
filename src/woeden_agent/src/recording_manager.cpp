@@ -150,7 +150,7 @@ void recording_manager::stop()
   sleep(10);
 
   for (const auto & entry : filesystem::directory_iterator(bag_path_)) {
-    string db_path = entry.path();
+    string db_path = entry.path().string();
     if (db_path.find(".db3") != string::npos) {
       remote_throttle_from_db(db_path.c_str());
     }

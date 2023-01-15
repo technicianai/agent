@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(woeden_agent)
 
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -27,6 +27,7 @@ find_package(interfaces REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(rosbag2_cpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(ament_cmake_python REQUIRED)
@@ -45,6 +46,7 @@ add_executable(woeden_agent
   src/mqtt_facade.cpp
   src/utils.cpp
   src/config.cpp
+  src/generic_subscription.cpp
 )
 
 ament_python_install_package(${PROJECT_NAME})
@@ -59,6 +61,7 @@ ament_target_dependencies(woeden_agent
   interfaces
   rclcpp
   std_msgs
+  rosbag2_cpp
 )
 
 target_link_libraries(woeden_agent

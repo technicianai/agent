@@ -10,6 +10,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 
+#include "generic_subscription.hpp"
+
 #include <functional>
 #include <map>
 #include <string>
@@ -46,6 +48,7 @@ private:
   void status_array_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::DiagnosticArray> msg, topic* t);
   void gateway_cmd(std::string ec2_ip);
   void rosbridge_server_cmd();
+  std::shared_ptr<rosbag2_transport::GenericSubscription> create_generic_subscription(std::string topic, std::string type, rclcpp::QoS qos, std::function<void(std::shared_ptr<rclcpp::SerializedMessage>)> cb);
 
   std::shared_ptr<mqtt_facade> facade_;
   std::shared_ptr<recording_manager> rm_;

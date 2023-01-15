@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 
+#include <unistd.h>
 #include <sys/stat.h>
 
 using namespace std;

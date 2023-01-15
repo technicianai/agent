@@ -1,13 +1,14 @@
-FROM ros:humble
+FROM ros:foxy-ros1-bridge
 SHELL ["/bin/bash", "-c"]
 
 RUN apt-get update && apt-get install -y \
+    libboost-all-dev \
     openssl \
     openssh-client \
-    ros-humble-ackermann-msgs \
-    ros-humble-cv-bridge \
-    ros-humble-rosbridge-suite \
-    ros-humble-vision-opencv \
+    ros-foxy-cv-bridge \
+    ros-foxy-rosbridge-suite \
+    ros-foxy-vision-opencv \
+    ros-foxy-rosbag2* \
     uuid-dev
 
 RUN mkdir downloads
@@ -27,7 +28,7 @@ COPY bag_utils/ /woeden_agent/bag_utils/
 RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip imageio pandas rosbags
 
 COPY src/ /woeden_agent/
-RUN . /opt/ros/humble/setup.bash && colcon build
+RUN . /opt/ros/foxy/setup.bash && colcon build
 
 COPY certs/ /woeden_agent/certs/
 RUN chmod 400 /woeden_agent/certs/gateway.pem
