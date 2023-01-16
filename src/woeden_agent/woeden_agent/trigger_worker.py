@@ -153,7 +153,6 @@ class WoedenTriggerWorker(Node):
                     (comparator == 'LESS_THAN' and value < trigger_val) or \
                     (comparator == 'GREATER_THAN' and value > trigger_val)
             if fired:
-                self.get_logger().info('trigger fired')
                 self.req = Record.Request()
                 self.req.trigger_id = trigger.id
                 self.client.call_async(self.req)

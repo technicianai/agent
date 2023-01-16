@@ -5,12 +5,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # network_mode: host
+    network_mode: host
     environment:
       - HOST=ssl://mqtt.woeden.com
     volumes:
       - ~/woeden:/woeden
   ros1:
+    network_mode: host
     build:
       context: ./
       dockerfile: ros1.Dockerfile

@@ -37,8 +37,8 @@ COPY ros-entrypoint.sh /woeden_agent/
 
 ENV HOME /
 ENV HOST ssl://mqtt.woeden.com
-ENV ROS_HOSTNAME bridge
-ENV ROS_MASTER_URI http://ros1:11311
+ENV ROS_HOSTNAME=localhost
+ENV ROS_MASTER_URI=http://localhost:11311
 
 RUN rm -rf /woeden_agent/src/
 

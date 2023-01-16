@@ -230,19 +230,18 @@ void recording_manager::always_record_cmd(string bag_path)
 
 void recording_manager::record_cmd(string bag_path, vector<recording_topic> recording_topics)
 {
-  // char* args[recording_topics.size() + 6] = { "rosbag", "record", "__name:=trigger_bag"};
-  char* args[6] = { "rosbag", "record", "__name:=trigger_bag"};
+  char* args[recording_topics.size() + 6] = { "rosbag", "record", "__name:=trigger_bag"};
   int i = 2;
 
-  // for (const recording_topic & rt : recording_topics) {
-  //   string topic_str = rt.name;
-  //   if (rt.throttle) {
-  //     topic_str += "/throttle";
-  //   }
-  //   const char* name = topic_str.c_str();
-  //   args[i] = (char*) malloc(strlen(name)+1);
-  //   strcpy(args[i++], name);
-  // }
+  for (const recording_topic & rt : recording_topics) {
+    string topic_str = rt.name;
+    if (rt.throttle) {
+      topic_str += "/throttle";
+    }
+    const char* name = topic_str.c_str();
+    args[i] = (char*) malloc(strlen(name)+1);
+    strcpy(args[i++], name);
+  }
 
   args[i++] = "-O";
   args[i++] = const_cast<char*>(bag_path.c_str());

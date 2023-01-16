@@ -99,7 +99,7 @@ void ros2_monitor::discover_nodes()
         break;
       }
     }
-    if (new_node) {
+    if (new_node && node_name != "/ros_bridge" && node_name != "/woeden_disk_monitor" && node_name != "/woeden_ros2_monitor" && node_name != "/woeden_trigger_worker" && node_name != "/woeden_upload_worker") {
       nodes_.push_back({ .name = node_name, .status = "running" });
     }
   }
@@ -186,6 +186,7 @@ void ros2_monitor::sample_topic_freqs()
 {
   vector<topic> data;
   for (topic* t : topics_) {
+    if (t->name == "/woeden" || t->name == "/upload_chunks") continue;
     double frequency = (double) t->message_count / (double) SAMPLING_INTERVAL;
     t->message_count = 0;
     t->frequency = frequency;
@@ -197,7 +198,7 @@ void ros2_monitor::sample_topic_freqs()
 void ros2_monitor::default_callback(shared_ptr<rclcpp::SerializedMessage> msg, topic* t)
 {
   t->message_count++;
-  if (t->name == "/woeden") return;
+  if (t->name == "/woeden" || t->triggers.size() == 0) return;
 
   auto message = interfaces::msg::WrappedBytes();
   auto serialized_message = msg->get_rcl_serialized_message();
@@ -299,7 +300,6 @@ void ros2_monitor::rosbridge_server_cmd()
 
 void ros2_monitor::custom_trigger_fired(const std::shared_ptr<interfaces::srv::Record::Request> request, std::shared_ptr<interfaces::srv::Record::Response> response)
 {
-  RCLCPP_INFO(get_logger(), "trigger fired in c++");
   for (recording_trigger& rt : unassigned_triggers_) {
     if (rt.get_id() == request->trigger_id) {
       if (rt.is_enabled()) {
