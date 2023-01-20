@@ -9,18 +9,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-include(FetchContent)
-FetchContent_Declare(
-  paho-mqtt-cpp
-  GIT_REPOSITORY "https://github.com/eclipse/paho.mqtt.cpp.git"
-  GIT_TAG "2ff3d155dcd10564f1816675789284b4efd79eb7"
-)
-FetchContent_Declare(
-  json 
-  URL https://github.com/nlohmann/json/releases/download/v3.11.1/json.tar.xz
-)
-FetchContent_MakeAvailable(paho-mqtt-cpp json)
-
 find_package(ament_cmake REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(interfaces REQUIRED)
@@ -32,6 +20,8 @@ find_package(std_msgs REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(PahoMqttCpp REQUIRED)
 
 add_executable(woeden_agent
   src/main.cpp
@@ -69,6 +59,7 @@ target_link_libraries(woeden_agent
   nlohmann_json::nlohmann_json
   SQLite::SQLite3
   uuid
+  PahoMqttCpp::paho-mqttpp3-static
 )
 target_include_directories(woeden_agent
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include

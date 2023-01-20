@@ -1,0 +1,8 @@
+prefix=/woeden_ws/devel
+
+Name: custom_ros1_msg
+Description: Description of custom_ros1_msg
+Version: 0.0.0
+Cflags: -I/woeden_ws/devel/include
+Libs: -L${prefix}/lib 
+Requires: message_generation message_runtime rospy
