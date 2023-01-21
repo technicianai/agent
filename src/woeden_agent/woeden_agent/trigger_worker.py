@@ -130,12 +130,10 @@ class WoedenTriggerWorker(Node):
         module = importlib.import_module(f"rosbags.typesys.types")
         if hasattr(module, msgtype):
             trigger_cls = getattr(module, msgtype)
-            self.get_logger().info(msgtype)
         else:
             register_types(get_types_from_msg(msgdef, f'woeden_msgs/msg/Trigger{trigger_id}'))
             module = importlib.import_module(f"rosbags.typesys.types")
             trigger_cls =  getattr(module, f"woeden_msgs__msg__Trigger{trigger_id}")
-            self.get_logger().info(msgtype)
         return trigger_cls
 
     def add_handler(self, topic, trigger, msg_cls):
