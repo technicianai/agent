@@ -97,7 +97,7 @@ void ros2_monitor::discover_nodes()
         break;
       }
     }
-    if (new_node) {
+    if (new_node && node_name != "/ros_bridge" && node_name != "/woeden_disk_monitor" && node_name != "/woeden_ros2_monitor" && node_name != "/woeden_trigger_worker" && node_name != "/woeden_upload_worker") {
       nodes_.push_back({ .name = node_name, .status = "running" });
     }
   }
@@ -184,6 +184,7 @@ void ros2_monitor::sample_topic_freqs()
 {
   vector<topic> data;
   for (topic* t : topics_) {
+    if (t->name == "/woeden" || t->name == "/upload_chunks") continue;
     double frequency = (double) t->message_count / (double) SAMPLING_INTERVAL;
     t->message_count = 0;
     t->frequency = frequency;
