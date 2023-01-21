@@ -10,9 +10,10 @@ unset ROS_DISTRO
 . /opt/ros/foxy/setup.bash
 . install/setup.bash
 
+unset ROS_DISTRO
+. /opt/ros/noetic/setup.bash
+
 ros2 run woeden_agent woeden_agent &
 ros2 run woeden_agent trigger_worker.py &
 ros2 run woeden_agent upload_worker.py &
-unset ROS_DISTRO &
-. /opt/ros/noetic/setup.bash &
 ros2 run ros1_bridge dynamic_bridge --bridge-all-1to2-topics

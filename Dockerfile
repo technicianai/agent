@@ -47,7 +47,8 @@ RUN apt-get update && apt-get install -y \
     ros-foxy-vision-opencv \
     ros-foxy-rosbag2* \
     ros-foxy-can-msgs \
-    ros-foxy-nmea-msgs
+    ros-foxy-nmea-msgs \
+    ros-noetic-rosbag
 RUN cd downloads && \
     git clone https://github.com/IntelRealSense/realsense-ros.git && \
     cd realsense-ros && \
@@ -66,14 +67,11 @@ RUN chmod 400 /woeden_agent/certs/gateway.pem
 
 RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip rosbags
 
-RUN . /opt/ros/foxy/setup.bash && \
-    colcon build \
-        --symlink-install \
-        --packages-skip ros1_bridge
+RUN . /opt/ros/foxy/setup.bash && colcon build --packages-skip ros1_bridge
 RUN . /opt/ros/noetic/setup.bash && \
     . /opt/ros/foxy/setup.bash && \
     . /woeden_agent/install/setup.bash && \
-    MAKEFLAGS="-j1 -l1" colcon build \
+    MAKEFLAGS="-j10 -l1" colcon build \
         --symlink-install \
         --packages-select ros1_bridge \
         --cmake-force-configure \
@@ -87,9 +85,5 @@ ENV ROS_HOSTNAME=localhost
 ENV ROS_MASTER_URI=http://localhost:11311
 
 RUN rm -rf /woeden_agent/src/ /downloads/
-RUN apt remove -y \
-    ros-dev-tools \
-    gnupg2 \
-    locales
 
 CMD ["./ros-entrypoint.sh"]
