@@ -22,7 +22,6 @@ class WoedenUploadWorker(Node):
         self.queue = []
     
     def service_callback(self, request, response):
-        self.get_logger().info(str(request))
         self.queue.append(request)
         response.success = True
         return response

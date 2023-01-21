@@ -6,9 +6,9 @@ services:
       context: .
     network_mode: host
     environment:
-      - HOST=localhost:1883
+      - HOST=ssl://mqtt.woeden.com
     volumes:
-      - ./woeden:/woeden
+      - ~/woeden:/woeden
 
 volumes:
   woeden:
