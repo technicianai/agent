@@ -189,11 +189,10 @@ bool recording_manager::is_recording()
 void recording_manager::throttle_cmd(string topic, double frequency)
 {
   setsid();
-  char* args[8];
+  char* args[7];
   int i = 0;
 
-  args[i++] = "ros2";
-  args[i++] = "run";
+  args[i++] = "rosrun";
   args[i++] = "topic_tools";
   args[i++] = "throttle";
   args[i++] = "messages";
@@ -213,19 +212,18 @@ void recording_manager::throttle_cmd(string topic, double frequency)
 
   args[i] = NULL;
 
-  execvp("ros2", args);
+  execvp("rosrun", args);
 }
 
 void recording_manager::always_record_cmd(string bag_path)
 {
-  char* args[9] = {
-    "ros2", "bag", "record",
+  char* args[6] = {
+    "rosbag", "record",
     "-a",
-    "-o", const_cast<char*>(bag_path.c_str()),
-    "--max-bag-size", "1050000000", 
+    "-O", const_cast<char*>(bag_path.c_str()),
     NULL
   };
-  execvp("ros2", args);
+  execvp("rosbag", args);
 }
 
 void recording_manager::record_cmd(string bag_path, vector<recording_topic> recording_topics)

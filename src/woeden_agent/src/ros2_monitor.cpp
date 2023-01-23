@@ -294,8 +294,8 @@ void ros2_monitor::gateway_cmd(string ec2_ip)
 
 void ros2_monitor::rosbridge_server_cmd()
 {
-  char* args[5] = { "ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml", NULL };
-  execvp("ros2", args);
+  char* args[5] = { "roslaunch", "rosbridge_server", "rosbridge_websocket.launch", NULL };
+  execvp("roslaunch", args);
 }
 
 void ros2_monitor::custom_trigger_fired(const std::shared_ptr<interfaces::srv::Record::Request> request, std::shared_ptr<interfaces::srv::Record::Response> response)

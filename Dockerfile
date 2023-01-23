@@ -48,7 +48,9 @@ RUN apt-get update && apt-get install -y \
     ros-foxy-rosbag2* \
     ros-foxy-can-msgs \
     ros-foxy-nmea-msgs \
-    ros-noetic-rosbag
+    ros-noetic-rosbag \
+    ros-noetic-rosbridge-server \
+    ros-noetic-topic-tools
 RUN cd downloads && \
     git clone https://github.com/IntelRealSense/realsense-ros.git && \
     cd realsense-ros && \
