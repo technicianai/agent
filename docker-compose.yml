@@ -5,10 +5,12 @@ services:
     build:
       context: .
     network_mode: host
+    ipc: host
     environment:
-      - HOST=ssl://mqtt.woeden.com
+      - HOST=localhost
+      # - ROS_DISCOVERY_SERVER=127.0.0.1:11811 # for testing discovery server
     volumes:
-      - ~/woeden:/woeden
+      - ./woeden:/woeden
 
 volumes:
   woeden:
