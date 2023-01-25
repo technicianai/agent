@@ -36,6 +36,7 @@ COPY ros-entrypoint.sh /woeden_agent/
 
 ENV HOME /
 ENV HOST ssl://mqtt.woeden.com
+ENV FASTRTPS_DEFAULT_PROFILES_FILE /super_client_configuration_file.xml
 
 RUN rm -rf /woeden_agent/src/
 
