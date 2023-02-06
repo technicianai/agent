@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  woeden_agent:
+    build:
+      context: .
+    network_mode: host
+    ipc: host
+    environment:
+      - MQTT_HOST=localhost
+      - ROS_DISCOVERY_SERVER=127.0.0.1:11811
+    volumes:
+      - ./woeden:/woeden
+
+volumes:
+  woeden:

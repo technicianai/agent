@@ -35,9 +35,12 @@ RUN chmod 400 /woeden_agent/certs/gateway.pem
 COPY ros-entrypoint.sh /woeden_agent/
 
 ENV HOME /
-ENV HOST ssl://mqtt.woeden.com
+ENV MQTT_HOST ssl://mqtt.woeden.com
 ENV FASTRTPS_DEFAULT_PROFILES_FILE /super_client_configuration_file.xml
 
 RUN rm -rf /woeden_agent/src/
+
+RUN mkdir -p /.ros/log
+RUN chmod -R 777 /.ros
 
 CMD ["./ros-entrypoint.sh"]
