@@ -7,8 +7,7 @@ services:
     network_mode: host
     ipc: host
     environment:
-      - HOST=localhost
-      # - ROS_DISCOVERY_SERVER=127.0.0.1:11811 # for testing discovery server
+      - MQTT_HOST=localhost
     volumes:
       - ./woeden:/woeden
 

@@ -16,7 +16,7 @@ int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
-  string host = getenv("HOST");
+  string host = getenv("MQTT_HOST");
   string home = getenv("HOME");
 
   config c(home);

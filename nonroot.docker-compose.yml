@@ -5,11 +5,12 @@ services:
     build:
       context: .
     network_mode: host
-    ipc: host
+    user: 1000:1000
     environment:
-      - HOST=ssl://mqtt.dev.woeden.com
+      - MQTT_HOST=ssl://mqtt.woeden.com
     volumes:
       - ~/woeden:/woeden
+      - /dev/shm:/dev/shm
 
 volumes:
   woeden:
