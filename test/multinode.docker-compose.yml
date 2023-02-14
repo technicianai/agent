@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  woeden_agent:
+    build:
+      context: .
+    environment:
+      - HOST=localhost
+      # - ROS_DISCOVERY_SERVER=127.0.0.1:11811 # Uncomment for testing discovery server
+    volumes:
+      - ./woeden:/woeden
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+  talker:
+    image: osrf/ros:humble-desktop
+    command: ros2 run demo_nodes_cpp talker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+  listener:
+    image: osrf/ros:humble-desktop
+    command: ros2 run demo_nodes_cpp listener
+    depends_on:
+      - talker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+volumes:
+  woeden:
