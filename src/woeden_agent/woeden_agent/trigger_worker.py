@@ -28,13 +28,14 @@ from interfaces.msg import WrappedBytes
 @dataclass
 class Topic:
     """Topic whose data should be recorded for a new trigger"""
+
     frequency: float
     max_frequency: bool
     name: str
     type: str
 
     @staticmethod
-    def from_dict(obj: Any) -> 'Topic':
+    def from_dict(obj: Any) -> "Topic":
         _frequency = float(obj.get("frequency"))
         _max_frequency = bool(obj.get("max_frequency"))
         _name = str(obj.get("name"))
@@ -44,13 +45,13 @@ class Topic:
 
 @dataclass
 class KeyValue:
-    comparator: str # one of GREATER_THAN, LESS_THAN, EQUAL
-    field: str # dot separated field name
+    comparator: str  # one of GREATER_THAN, LESS_THAN, EQUAL
+    field: str  # dot separated field name
     value: str
     value_type: str
 
     @staticmethod
-    def from_dict(obj: Any) -> 'KeyValue':
+    def from_dict(obj: Any) -> "KeyValue":
         _comparator = str(obj.get("comparator"))
         _field = str(obj.get("field"))
         _value = str(obj.get("value"))
@@ -65,7 +66,7 @@ class Comparison:
     name: str
 
     @staticmethod
-    def from_dict(obj: Any) -> 'Comparison':
+    def from_dict(obj: Any) -> "Comparison":
         _key_values = [KeyValue.from_dict(y) for y in obj.get("key_values")]
         _levels = obj.get("levels")
         _name = str(obj.get("name"))
@@ -74,18 +75,18 @@ class Comparison:
 
 @dataclass
 class Trigger:
-    base_path: str # where the triggered bag is stored
+    base_path: str  # where the triggered bag is stored
     comparison: KeyValue
-    duration: int #number of seconds for recording after the trigger
-    enabled: bool # Whether this trigger is enabled
-    id: int # ID for this particular trigger
-    topic: str # topic name to inspect
-    type: str # type of the topic
+    duration: int  # number of seconds for recording after the trigger
+    enabled: bool  # Whether this trigger is enabled
+    id: int  # ID for this particular trigger
+    topic: str  # topic name to inspect
+    type: str  # type of the topic
     msgdef: str
-    topics: List[Topic] # topics to log
+    topics: List[Topic]  # topics to log
 
     @staticmethod
-    def from_dict(obj: Any) -> 'Trigger':
+    def from_dict(obj: Any) -> "Trigger":
         _base_path = str(obj.get("base_path"))
         _comparison = KeyValue.from_dict(obj.get("comparison"))
         _duration = int(obj.get("duration"))
@@ -96,24 +97,39 @@ class Trigger:
         _msgdef = str(obj.get("msgdef"))
         _topics = [Topic.from_dict(y) for y in obj.get("topics")]
 
-        return Trigger(_base_path, _comparison, _duration, _enabled, _id, _topic, _type, _msgdef, _topics)
+        return Trigger(
+            _base_path,
+            _comparison,
+            _duration,
+            _enabled,
+            _id,
+            _topic,
+            _type,
+            _msgdef,
+            _topics,
+        )
 
 
 @dataclass
 class Triggers:
     triggers: List[Trigger]
+
     @staticmethod
-    def from_dict(obj: Any) -> 'Triggers':
+    def from_dict(obj: Any) -> "Triggers":
         return Triggers(obj.get("triggers"))
 
 
 class WoedenTriggerWorker(Node):
     def __init__(self):
         super().__init__("woeden_trigger_worker")
-        self.srv = self.create_service(CustomTrigger, "/custom_trigger", self.triggers_callback)
-        self.bytes_sub = self.create_subscription(WrappedBytes, "/woeden", self.bytes_callback, 10)
+        self.srv = self.create_service(
+            CustomTrigger, "/custom_trigger", self.triggers_callback
+        )
+        self.bytes_sub = self.create_subscription(
+            WrappedBytes, "/woeden", self.bytes_callback, 10
+        )
         self.handlers = defaultdict(dict)
-        self.client = self.create_client(Record, 'record')
+        self.client = self.create_client(Record, "record")
 
     def triggers_callback(self, request, response):
         trigger_dict = json.loads(request.data)
@@ -125,22 +141,30 @@ class WoedenTriggerWorker(Node):
         response.success = True
         return response
 
-
     def load_class(self, trigger_id, msgtype, msgdef):
         module = importlib.import_module(f"rosbags.typesys.types")
+
+        # We may get the slash-separated style of message type, in which case
+        # switch to the rosbags-style "__" separator.
+        rosbags_lib_msgtype = msgtype.replace("/", "__")
         if hasattr(module, msgtype):
-            trigger_cls = getattr(module, msgtype)
+            trigger_cls = getattr(module, rosbags_lib_msgtype)
+        elif hasattr(module, rosbags_lib_msgtype):
+            trigger_cls = getattr(module, rosbags_lib_msgtype)
         else:
-            register_types(get_types_from_msg(msgdef, f'woeden_msgs/msg/Trigger{trigger_id}'))
+            register_types(
+                get_types_from_msg(msgdef, f"woeden_msgs/msg/Trigger{trigger_id}")
+            )
             module = importlib.import_module(f"rosbags.typesys.types")
-            trigger_cls =  getattr(module, f"woeden_msgs__msg__Trigger{trigger_id}")
+            trigger_cls = getattr(module, f"woeden_msgs__msg__Trigger{trigger_id}")
         return trigger_cls
 
     def add_handler(self, topic, trigger, msg_cls):
         def rgetattr(obj, attr):
             def _getattr(obj, attr):
                 return getattr(obj, attr)
-            return functools.reduce(_getattr, [obj] + attr.split('.'))
+
+            return functools.reduce(_getattr, [obj] + attr.split("."))
 
         def partial_handler(deserialization_func, byte_array):
             msg_instance = deserialization_func(byte_array)
@@ -149,20 +173,24 @@ class WoedenTriggerWorker(Node):
             comparator = trigger.comparison.comparator
             trigger_val = trigger.comparison.value
 
-            if trigger.comparison.value_type == 'NUMBER':
+            if trigger.comparison.value_type == "NUMBER":
                 value = float(value)
                 trigger_val = float(trigger_val)
-            
-            fired = (comparator == 'EQUAL_TO' and value == trigger_val) or \
-                    (comparator == 'LESS_THAN' and value < trigger_val) or \
-                    (comparator == 'GREATER_THAN' and value > trigger_val)
+
+            fired = (
+                (comparator == "EQUAL_TO" and value == trigger_val)
+                or (comparator == "LESS_THAN" and value < trigger_val)
+                or (comparator == "GREATER_THAN" and value > trigger_val)
+            )
             if fired:
                 self.req = Record.Request()
                 self.req.trigger_id = trigger.id
                 self.client.call_async(self.req)
 
         serdes_func = lambda raw_data: deserialize_cdr(raw_data, msg_cls.__msgtype__)
-        self.handlers[topic][trigger.id] = functools.partial(partial_handler, serdes_func)
+        self.handlers[topic][trigger.id] = functools.partial(
+            partial_handler, serdes_func
+        )
 
     def bytes_callback(self, wrapped_bytes):
         handlers = self.handlers.get(wrapped_bytes.topic)
