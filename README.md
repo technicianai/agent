@@ -18,3 +18,10 @@ $ git clone git@github.com:woedeninc/woeden-agent.git
 $ cd woeden-agent
 $ docker-compose up --build
 ```
+
+## Deployment
+
+```
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/woeden
+docker buildx build --platform=linux/amd64,linux/arm64 -t public.ecr.aws/woeden/ros1-agent:latest .
+```

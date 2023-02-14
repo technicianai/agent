@@ -16,7 +16,8 @@ RUN update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 ENV LANG=en_US.UTF-8
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-RUN apt update && apt upgrade && apt install -y ros-foxy-ros-base python3-argcomplete ros-dev-tools
+RUN apt update
+RUN apt install -y ros-foxy-ros-base python3-argcomplete ros-dev-tools
 
 # Non-ROS dependencies
 RUN apt-get update && apt-get install -y \
@@ -87,6 +88,7 @@ ENV ROS_HOSTNAME=localhost
 ENV ROS_MASTER_URI=http://localhost:11311
 
 RUN rm -rf /woeden_agent/src/ /downloads/
+RUN mkdir /.ros
 RUN chmod -R 777 /.ros
 
 CMD ["./ros-entrypoint.sh"]
