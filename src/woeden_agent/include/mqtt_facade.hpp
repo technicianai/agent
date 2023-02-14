@@ -62,9 +62,9 @@ public:
 
 private:
   void dispatch(mqtt::const_message_ptr msg);
-  void publish(std::string topic, nlohmann::json payload);
-  void publish(std::string topic, const char* payload);
-  void publish(std::string topic, const void* payload, size_t len);
+  void publish(std::string topic, nlohmann::json payload, int qos);
+  void publish(std::string topic, const char* payload, int qos);
+  void publish(std::string topic, const void* payload, size_t len, int qos);
   std::string mqtt_topic(std::string suffix);
 
   mqtt::async_client_ptr client_;

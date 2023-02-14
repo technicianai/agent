@@ -36,16 +36,16 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
   client_->set_connected_handler([&](string data) -> void {
     mqtt::subscribe_options subOpts;
     mqtt::properties props { { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 } };
-    client_->subscribe(mqtt_topic("record"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("stop"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("upload"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("new_trigger"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("robot_gateway"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("robot_gateway/close"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("update_trigger"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("update_always_record"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("gif/upload"), 0, subOpts, props);
-    client_->subscribe(mqtt_topic("update_max_bandwidth"), 0, subOpts, props);
+    client_->subscribe(mqtt_topic("record"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("stop"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("upload"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("new_trigger"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("robot_gateway"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("robot_gateway/close"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("update_trigger"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("update_always_record"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("gif/upload"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("update_max_bandwidth"), 2, subOpts, props);
     on_reconnect_();
   });
 }
@@ -78,7 +78,7 @@ void mqtt_facade::connect()
 
 void mqtt_facade::publish_alive()
 {
-  publish("alive", "1");
+  publish("alive", "1", 0);
 }
 
 void mqtt_facade::publish_robot_config(robot_config rc)
@@ -92,7 +92,7 @@ void mqtt_facade::publish_robot_config(robot_config rc)
   }
   nlohmann::json data;
   data["executables"] = pkgs_json;
-  publish("config", data);
+  publish("config", data, 0);
 }
 
 void mqtt_facade::publish_nodes(vector<node> nodes)
@@ -104,7 +104,7 @@ void mqtt_facade::publish_nodes(vector<node> nodes)
     node_json["status"] = n.status;
     nodes_json.push_back(node_json);
   }
-  publish("nodes", nodes_json);
+  publish("nodes", nodes_json, 0);
 }
 
 void mqtt_facade::publish_topics(vector<topic> topics)
@@ -117,7 +117,7 @@ void mqtt_facade::publish_topics(vector<topic> topics)
     topic_json["frequency"] = t.frequency;
     topics_json.push_back(topic_json);
   }
-  publish("topics", topics_json);
+  publish("topics", topics_json, 0);
 }
 
 void mqtt_facade::publish_mounted_paths(vector<mount> mounts)
@@ -130,7 +130,7 @@ void mqtt_facade::publish_mounted_paths(vector<mount> mounts)
     mount_json["total"] = mnt.total;
     mounts_json.push_back(mount_json);
   }
-  publish("mounted_paths", mounts_json);
+  publish("mounted_paths", mounts_json, 0);
 }
 
 void mqtt_facade::publish_started(string bag_uuid, uint32_t trigger_id)
@@ -138,7 +138,7 @@ void mqtt_facade::publish_started(string bag_uuid, uint32_t trigger_id)
   nlohmann::json data;
   data["bag_uuid"] = bag_uuid;
   data["trigger_id"] = trigger_id;
-  publish("started", data);
+  publish("started", data, 2);
 }
 
 void mqtt_facade::publish_stopped(string bag_uuid, recording_metadata rm)
@@ -147,7 +147,7 @@ void mqtt_facade::publish_stopped(string bag_uuid, recording_metadata rm)
   data["bag_uuid"] = bag_uuid;
   data["yaml"] = rm.metadata;
   data["size"] = rm.size;
-  publish("stopped", data);
+  publish("stopped", data, 2);
 }
 
 void mqtt_facade::publish_status(string bag_uuid, recording_status rs)
@@ -158,22 +158,22 @@ void mqtt_facade::publish_status(string bag_uuid, recording_status rs)
   data["rate"] = rs.rate;
   data["eta"] = rs.eta;
   data["trigger_id"] = rs.trigger_id;
-  publish("recording", data);
+  publish("recording", data, 1);
 }
 
 void mqtt_facade::publish_uploaded(string data)
 {
-  publish("uploaded", data.c_str());
+  publish("uploaded", data.c_str(), 2);
 }
 
 void mqtt_facade::publish_gateway_open()
 {
-  publish("robot_gateway/opened", "");
+  publish("robot_gateway/opened", "", 2);
 }
 
 void mqtt_facade::publish_gateway_closed()
 {
-  publish("robot_gateway/closed", "");
+  publish("robot_gateway/closed", "", 2);
 }
 
 void mqtt_facade::publish_trigger_status(vector<recording_trigger> triggers)
@@ -182,7 +182,7 @@ void mqtt_facade::publish_trigger_status(vector<recording_trigger> triggers)
   for (recording_trigger rt : triggers) {
     data.push_back(rt.to_reduced_json());
   }
-  publish("triggers", data);
+  publish("triggers", data, 1);
 }
 
 void mqtt_facade::publish_always_record_status(always_record_config arc)
@@ -191,25 +191,25 @@ void mqtt_facade::publish_always_record_status(always_record_config arc)
   data["enabled"] = arc.enabled;
   data["base_path"] = arc.base_path;
   data["duration"] = arc.duration;
-  publish("always_record", data);
+  publish("always_record", data, 2);
 }
 
 void mqtt_facade::publish_max_bandwidth_status(double max_bandwidth)
 {
-  publish("max_bandwidth", to_string(max_bandwidth).c_str());
+  publish("max_bandwidth", to_string(max_bandwidth).c_str(), 2);
 }
 
 void mqtt_facade::publish_gif_uploaded(string bag_uuid)
 {
   nlohmann::json data;
   data["bag_uuid"] = bag_uuid;
-  publish("gif/uploaded", data);
+  publish("gif/uploaded", data, 2);
 }
 
 void mqtt_facade::publish_chunk(string bag_uuid, uint32_t index, const void * contents, size_t len)
 {
   string topic = "bag/" + bag_uuid + "/upload/" + to_string(index);
-  publish(topic, contents, len);
+  publish(topic, contents, len, 1);
 }
 
 void mqtt_facade::publish_upload_complete(string bag_uuid, uint32_t num_chunks)
@@ -218,18 +218,19 @@ void mqtt_facade::publish_upload_complete(string bag_uuid, uint32_t num_chunks)
   data["bag_uuid"] = bag_uuid;
   data["num_chunks"] = num_chunks;
   string topic = "bag/" + bag_uuid + "/upload/complete";
-  publish(topic, data);
+  publish(topic, data, 2);
 }
 
-void mqtt_facade::publish(string topic, nlohmann::json payload)
+void mqtt_facade::publish(string topic, nlohmann::json payload, int qos)
 {
-  publish(topic, payload.dump().c_str());
+  publish(topic, payload.dump().c_str(), qos);
 }
 
-void mqtt_facade::publish(string topic, const char* payload)
+void mqtt_facade::publish(string topic, const char* payload, int qos)
 {
   try {
     mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload);
+    msg->set_qos(qos);
     client_->publish(msg);
     if (!is_connected_) {
       cout << "Successfully connected to Woeden. Actively monitoring." << endl; 
@@ -245,10 +246,11 @@ void mqtt_facade::publish(string topic, const char* payload)
   }
 }
 
-void mqtt_facade::publish(string topic, const void* payload, size_t len)
+void mqtt_facade::publish(string topic, const void* payload, size_t len, int qos)
 {
   try {
     mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload, len);
+    msg->set_qos(qos);
     client_->publish(msg);
     if (!is_connected_) {
       cout << "Successfully connected to Woeden. Actively monitoring." << endl; 

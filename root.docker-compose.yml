@@ -5,7 +5,6 @@ services:
     build:
       context: .
     network_mode: host
-    ipc: host
     environment:
       - MQTT_HOST=localhost
     volumes:
