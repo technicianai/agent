@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  woeden_agent:
+    build:
+      context: .
+    network_mode: host
+    user: 1000:1000
+    environment:
+      - MQTT_HOST=ssl://mqtt.woeden.com
+    volumes:
+      - ./woeden:/woeden
+      - /dev/shm:/dev/shm
+
+volumes:
+  woeden:

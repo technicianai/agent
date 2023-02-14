@@ -7,9 +7,9 @@ services:
     network_mode: host
     ipc: host
     environment:
-      - HOST=ssl://mqtt.dev.woeden.com
+      - MQTT_HOST=localhost
     volumes:
-      - ~/woeden:/woeden
+      - ./woeden:/woeden
 
 volumes:
   woeden:
