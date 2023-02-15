@@ -40,6 +40,7 @@ public:
   void metadata_on_reconnect();
 
   void gif_upload(std::string bag_uuid, std::string base_path, std::string urls);
+  void metadata_upload(std::string bag_uuid, std::string base_path);
 
   void set_max_bandwidth(double bw);
 

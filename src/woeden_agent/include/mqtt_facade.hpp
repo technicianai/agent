@@ -31,8 +31,9 @@ public:
   void publish_mounted_paths(std::vector<mount> mounts);
 
   void publish_started(std::string bag_uuid, uint32_t trigger_id);
-  void publish_stopped(std::string bag_uuid, recording_metadata rm);
+  void publish_stopped(std::string bag_uuid, uintmax_t size);
   void publish_status(std::string bag_uuid, recording_status rs);
+  void publish_metadata(std::string bag_uuid, std::string metadata);
 
   void publish_uploaded(std::string data);
   void publish_upload_complete(std::string bag_uuid, uint32_t num_chunks);
@@ -59,6 +60,7 @@ public:
   void set_reconnect_callback(std::function<void ()> cb);
   void set_gif_upload_callback(std::function<void (std::string, std::string, std::string)> cb);
   void set_update_max_bandwidth_callback(std::function<void (double)> cb);
+  void set_metadata_upload_callback(std::function<void (std::string, std::string)> cb);
 
 private:
   void dispatch(mqtt::const_message_ptr msg);
@@ -84,6 +86,7 @@ private:
   std::function<void ()> on_reconnect_;
   std::function<void (std::string, std::string, std::string)> on_gif_upload_;
   std::function<void (double)> on_update_max_bandwidth_;
+  std::function<void (std::string, std::string)> on_metadata_upload_;
 };
 }
 

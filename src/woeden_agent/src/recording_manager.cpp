@@ -169,11 +169,8 @@ void recording_manager::stop()
   //   metadata += "\ntrigger: " + to_string(trigger_id_);
   // }
   // update_metadata(metadata_path, metadata);
-  string metadata = load_metadata(bag_path_);
-  facade_->publish_stopped(bag_uuid_, {
-    .metadata = metadata,
-    .size = bag_size()
-  });
+  uintmax_t size = bag_size();
+  facade_->publish_stopped(bag_uuid_, size);
 
   recording_ = false;
   stopping_ = false;
@@ -302,19 +299,21 @@ void recording_manager::status_check()
     stop();
   }
 
-  previous_size_ = size_;
-  string active_path = bag_path_ + ".active";
-  size_ = bag_size(active_path);
+  try {
+    previous_size_ = size_;
+    string active_path = bag_path_ + ".active";
+    size_ = bag_size(active_path);
 
-  double rate = (size_ - previous_size_) / SAMPLING_INTERVAL;
-  double eta = rate > 0 ? (double) remaining / rate : 0;
+    double rate = (size_ - previous_size_) / SAMPLING_INTERVAL;
+    double eta = rate > 0 ? (double) remaining / rate : 0;
 
-  facade_->publish_status(bag_uuid_, {
-    .eta = eta,
-    .rate = rate,
-    .size = size_,
-    .trigger_id = trigger_id_
-  });
+    facade_->publish_status(bag_uuid_, {
+      .eta = eta,
+      .rate = rate,
+      .size = size_,
+      .trigger_id = trigger_id_
+    });
+  } catch (std::filesystem::filesystem_error & e) {}
 }
 
 void recording_manager::upload(string bag_uuid, string base_path)
@@ -345,10 +344,8 @@ void recording_manager::metadata_on_reconnect()
         if (!filesystem::is_directory(path)) {
           string metadata = load_metadata(path);
           string bag_uuid = path.substr(path.find_last_of("/\\") + 1);
-          facade_->publish_stopped(bag_uuid, {
-            .metadata = metadata,
-            .size = filesystem::file_size(path)
-          });
+          uintmax_t size = filesystem::file_size(path);
+          facade_->publish_stopped(bag_uuid, size);
         }
       }
     }
@@ -369,6 +366,13 @@ void recording_manager::gif_upload(string bag_uuid, string base_path, string url
 
   // thread thread_object(f);
   // thread_object.detach();
+}
+
+void recording_manager::metadata_upload(string bag_uuid, string base_path)
+{
+  string bag_path = base_path + "/woeden/bags/" + bag_uuid + ".bag";
+  string metadata = load_metadata(bag_path);
+  facade_->publish_metadata(bag_uuid_, metadata);
 }
 
 void recording_manager::set_always_record(always_record_config arc)

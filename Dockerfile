@@ -83,7 +83,7 @@ RUN . /opt/ros/noetic/setup.bash && \
 COPY ros-entrypoint.sh /woeden_agent/
 
 ENV HOME /
-ENV HOST ssl://mqtt.woeden.com
+ENV MQTT_HOST ssl://mqtt.woeden.com
 ENV ROS_HOSTNAME=localhost
 ENV ROS_MASTER_URI=http://localhost:11311
 

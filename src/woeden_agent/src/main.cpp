@@ -16,7 +16,7 @@ int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
-  string host = getenv("HOST");
+  string host = getenv("MQTT_HOST");
   string home = getenv("HOME");
 
   config c(home);
@@ -56,6 +56,7 @@ int main(int argc, char * argv[])
     rm->set_max_bandwidth(max_bw);
     c.update_max_bandwidth(max_bw);
   });
+  facade->set_metadata_upload_callback(bind(&recording_manager::metadata_upload, rm, _1, _2));
 
   facade->connect();
 

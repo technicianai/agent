@@ -46,6 +46,7 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
     client_->subscribe(mqtt_topic("update_always_record"), 2, subOpts, props);
     client_->subscribe(mqtt_topic("gif/upload"), 2, subOpts, props);
     client_->subscribe(mqtt_topic("update_max_bandwidth"), 2, subOpts, props);
+    client_->subscribe(mqtt_topic("metadata/upload"), 2, subOpts, props);
     on_reconnect_();
   });
 }
@@ -141,13 +142,20 @@ void mqtt_facade::publish_started(string bag_uuid, uint32_t trigger_id)
   publish("started", data, 2);
 }
 
-void mqtt_facade::publish_stopped(string bag_uuid, recording_metadata rm)
+void mqtt_facade::publish_stopped(string bag_uuid, uintmax_t size)
 {
   nlohmann::json data;
   data["bag_uuid"] = bag_uuid;
-  data["yaml"] = rm.metadata;
-  data["size"] = rm.size;
+  data["size"] = size;
   publish("stopped", data, 2);
+}
+
+void mqtt_facade::publish_metadata(string bag_uuid, string metadata)
+{
+  nlohmann::json data;
+  data["bag_uuid"] = bag_uuid;
+  data["metadata"] = metadata;
+  publish("metadata", data, 2);
 }
 
 void mqtt_facade::publish_status(string bag_uuid, recording_status rs)
@@ -324,6 +332,11 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     on_gif_upload_(bag_uuid, base_path, urls);
   } else if (topic == mqtt_topic("update_max_bandwidth")) {
     on_update_max_bandwidth_(stod(payload));
+  } else if (topic == mqtt_topic("metadata/upload")) {
+    nlohmann::json data = nlohmann::json::parse(payload);
+    string bag_uuid = data["bag_uuid"];
+    string base_path = data["base_path"];
+    on_metadata_upload_(bag_uuid, base_path);
   }
 }
 
@@ -380,5 +393,10 @@ void mqtt_facade::set_gif_upload_callback(function<void (string, string, string)
 void mqtt_facade::set_update_max_bandwidth_callback(function<void (double)> cb)
 {
   on_update_max_bandwidth_ = cb;
+}
+
+void mqtt_facade::set_metadata_upload_callback(function<void (string, string)> cb)
+{
+  on_metadata_upload_ = cb;
 }
 }

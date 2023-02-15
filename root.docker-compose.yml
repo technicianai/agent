@@ -6,7 +6,7 @@ services:
       context: .
     network_mode: host
     environment:
-      - MQTT_HOST=localhost
+      - MQTT_HOST=localhost:1883
     volumes:
       - ./woeden:/woeden
 
