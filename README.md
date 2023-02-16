@@ -18,3 +18,8 @@ $ git clone git@github.com:woedeninc/woeden-agent.git
 $ cd woeden-agent
 $ docker-compose up --build
 ```
+
+To deploy:
+`make deploy`
+
+You can potentially get some errors. If they look docker related, try `make install` to set up the builder driver. Could be AWS permissions too.
