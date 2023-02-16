@@ -34,7 +34,7 @@ docker:
 	  -f $(ROOTDIR)/Dockerfile $(ROOTDIR)
 
 deploy: docker
-	@chmod +x $(ROOTDIR)/src/program/$(MODULE)/deploy.sh
+	@chmod +x $(ROOTDIR)/deploy.sh
 	MODULE=$(MODULE) VERSION=$(VERSION) $(ROOTDIR)/deploy.sh
 
 .PHONY: clean version list
