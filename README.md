@@ -22,4 +22,4 @@ $ docker-compose up --build
 To deploy:
 `make deploy`
 
-You can potentially get some errors. If they look docker related, try `make install` to set up the builder driver. Could be AWS permissions too.
+You can potentially get some errors. If they look docker related, try `make install` to set up the builder driver. It's also important to have an .env file so if you see complaints about unset envs need to get that.
