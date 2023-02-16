@@ -4,3 +4,5 @@ install/
 log/
 */env/
 woeden/
+.env
+*.env

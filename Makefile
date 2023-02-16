@@ -1,10 +1,10 @@
-# This makefile helps with building and deploying the woeden-agent docker image.
+# This makefile helps with building and deploying the agent docker image.
 # This should be used in a deployment build, not really for local development where docker-compose --build
 # is probably a better option.
 # Inspired by https://github.com/flowerinthenight/golang-monorepo/blob/master/cmd/samplecmd/Makefile
 VERSION ?= $(shell git describe --match=NeVeRmAtCh --always --abbrev=8 --dirty)
 BLDVER = module:$(MODULE),version:$(VERSION),build:$(shell date +"%Y%m%d.%H%M%S.%N.%z")
-MODULE = woeden-agent
+MODULE = agent
 ROOTDIR=${PWD}
 
 .PHONY: all $(MODULE)
@@ -26,6 +26,7 @@ install:
 # The rule that is called by our root Makefile during CI builds.
 custom: docker deploy
 
+ECR_REPOSITORY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${MODULE}
 docker:
 	docker buildx build \
 		--builder=woeden \
