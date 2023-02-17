@@ -5,7 +5,9 @@ on:
     branches: [ "master" ]
 
 env:
-  AWS_REGION: us-east-2
+  # NOTE this MUST be us-east-1 because this is where all public repositories live.
+  # Private ones can go in the normal AWS region for the rest of the relevant infra.
+  AWS_REGION: us-east-1
 
 permissions:
   id-token: write
