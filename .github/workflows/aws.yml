@@ -35,19 +35,25 @@ jobs:
         aws-access-key-id: AKIAZHJGIKOLWZZSKLTC
         aws-secret-access-key: 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
 
+    # NOTE: have to do slightly different syntax for private repo, this is for public!
+    # See https://github.com/aws-actions/amazon-ecr-login
     - name: Login to Amazon ECR
-      id: login-ecr
+      id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@v1
+      with:
+        registry-type: public
 
     - name: Build and push
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: agent
       uses: docker/build-push-action@v4
+      env:
+        REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+        REGISTRY_ALIAS: my-ecr-public-registry-alias
+        REPOSITORY: agent
+        IMAGE_TAG: ${{ github.sha }}
       with:
         context: .
         platforms: linux/amd64,linux/arm64
         push: true
         tags: |
-          ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest 
-          ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          ${{ env.REGISTRY }}/${{ env.REGISTRY_ALIAS }}/${{ env.REPOSITORY }}:latest 
+          ${{ env.REGISTRY }}/${{ env.REGISTRY_ALIAS }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }} 
