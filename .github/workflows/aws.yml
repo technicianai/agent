@@ -49,7 +49,7 @@ jobs:
       uses: docker/build-push-action@v4
       env:
         REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-        REGISTRY_ALIAS: my-ecr-public-registry-alias
+        REGISTRY_ALIAS: woeden
         REPOSITORY: agent
         IMAGE_TAG: ${{ github.sha }}
       with:
