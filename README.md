@@ -1,27 +1,86 @@
-# woeden-agent
+# SensorSurf agent
 
-Built on ROS 2 and MQTT, this agent provides monitoring, remote control, and data collection capabilities out-of-the-box from the convenience of woeden.com.
+This repository contains the source code for the [SensorSurf](sensorsurf.com) agent which runs directly on a robot. The major capabilities this agent enables are:
+
+* Recording data on events.
+* Offloading on a poor connection.
+* Maintaining a rolling buffer.
+* Exposing a live view.
+
+Using a local configuration, your robot is able to connect via MQTT to our backend using [Eclipse Paho](http://eclipse.org/paho) library.
 
 ## Getting started
 
-To begin using this agent, begin by downloading and running our bash script on your personal computer or robot. This will register your robot within our system, providing it both an identifier and password that it can use to connect over MQTT.
+Before running the agent, make sure you have completed both of the following prequisities:
 
-```
-$ wget https://woeden.s3.us-east-2.amazonaws.com/setup.bash
+1. Create an account on [SensorSurf.com](sensorsurf.com).
+2. Run our setup script to configure your machine:
+
+```bash
+$ wget https://github.com/SensorSurf/woeden-scripts/blob/master/setup.bash
 $ bash setup.bash
 ```
 
-Next, simply clone this repository and begin running the agent.
+Once these steps are completed, you may proceed with either running our pre-built Docker container image or building from source.
 
-```
-$ git clone git@github.com:woedeninc/woeden-agent.git
-$ cd woeden-agent
-$ docker-compose up --build
+## Running the Docker image
+
+This one is easy. Run the command below to get started. If you do not wish for the container to always restart, then please be sure to remove the `--restart always` option.
+
+```bash
+$ docker run -d \
+    --net=host \
+    --ipc=host \
+    --restart always \
+    -v ~/woeden:/woeden \
+    public.ecr.aws/woeden/agent:latest
 ```
 
-## Deployment
+### Docker Compose files
 
+We have a few Docker Compose files which can be used to test various system configurations.
+* `root.docker-compose.yml` allows you to test the most common configuration, where Docker can access all ROS topics locally as root.
+* `nonroot.docker-compose.yml` allows you to test a configuration where the local ROS setup only permits access to the current, non-root user.
+* `discovery.docker-compose.yml` allows you to test a ROS system running a discovery server.
+
+## Building from source
+
+Follow the steps below to build from source, starting with dependencies:
+
+1. Install the [Eclipse Paho MQTT C](https://github.com/eclipse/paho.mqtt.c) library with the following set of commands.
 ```
-aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/woeden
-docker buildx build --platform=linux/amd64,linux/arm64 -t public.ecr.aws/woeden/ros1-agent:latest .
+$ git clone git@github.com:eclipse/paho.mqtt.c.git
+$ cd paho.mqtt.c
+$ mkdir build
+$ cmake . -DPAHO_WITH_SSL=TRUE -Bbuild
+$ make
+$ sudo make install
+```
+
+2. Install a few dependencies with pip.
+```
+$ python3 -m pip install \
+    stream-zip \
+    imageio \
+    pandas \
+    rosbags
+```
+
+3. Source your ROS environment, if you haven't already done so.
+```
+$ source /opt/ros/humble/setup.bash
+```
+
+4. Clone this repository into your ROS workspace (or wherever you want it) and compile with the following commands.
+```
+$ git clone git@github.com:SensorSurf/agent.git
+$ cd agent
+$ git checkout humble
+$ colcon build
+```
+
+5. Source your workspace install, and run the agent.
+```
+$ source install/setup.bash
+$ ros2 launch launch.py
 ```

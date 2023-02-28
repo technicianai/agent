@@ -4,3 +4,6 @@ install/
 log/
 */env/
 woeden/
+.env
+*.env
+__pycache__/*
