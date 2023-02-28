@@ -1,27 +1,29 @@
 #include "recording_manager.hpp"
-#include "utils.hpp"
+
+#include <signal.h>
+#include <sqlite3.h>
+#include <string.h>
 
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
-#include <signal.h>
-#include <sqlite3.h> 
-#include <string.h>
+#include "utils.hpp"
 
 using namespace std;
 using namespace placeholders;
 
 namespace woeden
 {
-static int sql_callback(void *NotUsed, int argc, char **argv, char **azColName) {
-   return 0;
-}
+static int sql_callback(void * NotUsed, int argc, char ** argv, char ** azColName) { return 0; }
 
-recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade, always_record_config arc, double max_bandwidth) : Node("woeden_recording_manager"), facade_(facade)
+recording_manager::recording_manager(
+  shared_ptr<disk_monitor> dm, shared_ptr<mqtt_facade> facade, always_record_config arc,
+  double max_bandwidth)
+: Node("woeden_recording_manager"), facade_(facade)
 {
   dm_ = dm;
   recording_ = false;
@@ -34,11 +36,14 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
     start_always_record();
   }
   upload_client_ = this->create_client<interfaces::srv::Upload>("/upload_bag");
-  upload_subscription_ = this->create_subscription<interfaces::msg::UploadBytes>("upload_chunks", 10, bind(&recording_manager::upload_bytes, this, _1));
-  upload_complete_ = this->create_service<interfaces::srv::UploadComplete>("/upload_complete", bind(&recording_manager::upload_complete, this, _1, _2));
+  upload_subscription_ = this->create_subscription<interfaces::msg::UploadBytes>(
+    "upload_chunks", 10, bind(&recording_manager::upload_bytes, this, _1));
+  upload_complete_ = this->create_service<interfaces::srv::UploadComplete>(
+    "/upload_complete", bind(&recording_manager::upload_complete, this, _1, _2));
 }
 
-void recording_manager::start(string bag_uuid, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
+void recording_manager::start(
+  string bag_uuid, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
 {
   if (recording_ || always_record_config_.enabled) {
     return;
@@ -68,7 +73,7 @@ void recording_manager::start(string bag_uuid, string base_path, uint32_t durati
   } else if (recording_pid_ > 0) {
     recording_ = true;
     facade_->publish_started(bag_uuid_, trigger_id_);
-    function<void ()> status_check = bind(&recording_manager::status_check, this);
+    function<void()> status_check = bind(&recording_manager::status_check, this);
     timer_ = create_wall_timer(chrono::seconds(15), status_check);
     if (duration > 0) {
       auto_stop_timer_ = create_wall_timer(chrono::seconds(duration), [&]() -> void {
@@ -101,20 +106,24 @@ void recording_manager::auto_start(recording_trigger rt)
     always_record_timer_.reset();
     trigger_start_time_ = time(0);
     trigger_duration_ = rt.get_duration();
-    
-    if ((always_record_turn_ && always_record_pid_1_ != NULL) || (!always_record_turn_ && always_record_pid_2_ == NULL && always_record_pid_1_ != NULL)) {
+
+    if (
+      (always_record_turn_ && always_record_pid_1_ != NULL) ||
+      (!always_record_turn_ && always_record_pid_2_ == NULL && always_record_pid_1_ != NULL)) {
       recording_pid_ = always_record_pid_1_;
       bag_uuid_ = always_record_bag_uuid_1_;
       bag_path_ = always_record_bag_path_1_;
       annihilate_recording(always_record_pid_2_, always_record_bag_path_2_);
-    } else if ((!always_record_turn_ && always_record_pid_2_ != NULL) || (always_record_turn_ && always_record_pid_1_ == NULL && always_record_pid_2_ != NULL)) {
+    } else if (
+      (!always_record_turn_ && always_record_pid_2_ != NULL) ||
+      (always_record_turn_ && always_record_pid_1_ == NULL && always_record_pid_2_ != NULL)) {
       recording_pid_ = always_record_pid_2_;
       bag_uuid_ = always_record_bag_uuid_2_;
       bag_path_ = always_record_bag_path_2_;
       annihilate_recording(always_record_pid_1_, always_record_bag_path_1_);
     }
 
-    function<void ()> status_check = bind(&recording_manager::status_check, this);
+    function<void()> status_check = bind(&recording_manager::status_check, this);
     timer_ = create_wall_timer(chrono::seconds(15), status_check);
   } else {
     time_t current_time = time(0);
@@ -164,10 +173,7 @@ void recording_manager::stop()
   }
   update_metadata(metadata_path, metadata);
 
-  facade_->publish_stopped(bag_uuid_, {
-    .metadata = metadata,
-    .size = bag_size()
-  });
+  facade_->publish_stopped(bag_uuid_, {.metadata = metadata, .size = bag_size()});
 
   timer_.reset();
   recording_ = false;
@@ -176,15 +182,12 @@ void recording_manager::stop()
   recording_pid_ = NULL;
 }
 
-bool recording_manager::is_recording()
-{
-  return recording_;
-}
+bool recording_manager::is_recording() { return recording_; }
 
 void recording_manager::throttle_cmd(string topic, double frequency)
 {
   setsid();
-  char* args[8];
+  char * args[8];
   int i = 0;
 
   args[i++] = "ros2";
@@ -193,17 +196,17 @@ void recording_manager::throttle_cmd(string topic, double frequency)
   args[i++] = "throttle";
   args[i++] = "messages";
 
-  const char* in_topic = topic.c_str();
-  args[i] = (char*) malloc(topic.length()+1);
+  const char * in_topic = topic.c_str();
+  args[i] = (char *)malloc(topic.length() + 1);
   strcpy(args[i++], in_topic);
 
-  const char* msgs_per_sec = to_string(frequency).c_str();
-  args[i] = (char*) malloc(strlen(msgs_per_sec)+1);
+  const char * msgs_per_sec = to_string(frequency).c_str();
+  args[i] = (char *)malloc(strlen(msgs_per_sec) + 1);
   strcpy(args[i++], msgs_per_sec);
 
   string out_topic_str = topic + "/throttle";
-  const char* out_topic = out_topic_str.c_str();
-  args[i] = (char*) malloc(strlen(out_topic)+1);
+  const char * out_topic = out_topic_str.c_str();
+  args[i] = (char *)malloc(strlen(out_topic) + 1);
   strcpy(args[i++], out_topic);
 
   args[i] = NULL;
@@ -213,19 +216,15 @@ void recording_manager::throttle_cmd(string topic, double frequency)
 
 void recording_manager::always_record_cmd(string bag_path)
 {
-  char* args[9] = {
-    "ros2", "bag", "record",
-    "-a",
-    "-o", const_cast<char*>(bag_path.c_str()),
-    "--max-bag-size", "1050000000", 
-    NULL
-  };
+  char * args[9] = {
+    "ros2",           "bag",        "record", "-a", "-o", const_cast<char *>(bag_path.c_str()),
+    "--max-bag-size", "1050000000", NULL};
   execvp("ros2", args);
 }
 
 void recording_manager::record_cmd(string bag_path, vector<recording_topic> recording_topics)
 {
-  char* args[recording_topics.size() + 8] = { "ros2", "bag", "record" };
+  char * args[recording_topics.size() + 8] = {"ros2", "bag", "record"};
   int i = 3;
 
   for (const recording_topic & rt : recording_topics) {
@@ -233,40 +232,38 @@ void recording_manager::record_cmd(string bag_path, vector<recording_topic> reco
     if (rt.throttle) {
       topic_str += "/throttle";
     }
-    const char* name = topic_str.c_str();
-    args[i] = (char*) malloc(strlen(name)+1);
+    const char * name = topic_str.c_str();
+    args[i] = (char *)malloc(strlen(name) + 1);
     strcpy(args[i++], name);
   }
 
   args[i++] = "-o";
-  args[i++] = const_cast<char*>(bag_path.c_str());
+  args[i++] = const_cast<char *>(bag_path.c_str());
 
   args[i++] = "--max-bag-size";
-  args[i++] = "1050000000"; // ~0.98GB
+  args[i++] = "1050000000";  // ~0.98GB
 
   args[i++] = NULL;
 
   execvp("ros2", args);
 }
 
-void recording_manager::remote_throttle_from_db(const char* db_path)
+void recording_manager::remote_throttle_from_db(const char * db_path)
 {
-  sqlite3 *db;
+  sqlite3 * db;
   int rc = sqlite3_open(db_path, &db);
-  char *zErrMsg = 0;
-  rc = sqlite3_exec(db, "UPDATE topics SET name=replace(name, '/throttle', '');", sql_callback, 0, &zErrMsg);
+  char * zErrMsg = 0;
+  rc = sqlite3_exec(
+    db, "UPDATE topics SET name=replace(name, '/throttle', '');", sql_callback, 0, &zErrMsg);
   sqlite3_close(db);
 }
 
-uintmax_t recording_manager::bag_size()
-{
-  return directory_size(bag_path_);
-}
+uintmax_t recording_manager::bag_size() { return directory_size(bag_path_); }
 
 uintmax_t recording_manager::directory_size(string path)
 {
   uintmax_t size = 0;
-  for (const filesystem::directory_entry& f : filesystem::recursive_directory_iterator(path)) {
+  for (const filesystem::directory_entry & f : filesystem::recursive_directory_iterator(path)) {
     if (filesystem::is_regular_file(f.path())) {
       size += filesystem::file_size(f.path());
     }
@@ -310,14 +307,10 @@ void recording_manager::status_check()
   size_ = bag_size();
 
   double rate = (size_ - previous_size_) / SAMPLING_INTERVAL;
-  double eta = rate > 0 ? (double) remaining / rate : 0;
+  double eta = rate > 0 ? (double)remaining / rate : 0;
 
-  facade_->publish_status(bag_uuid_, {
-    .eta = eta,
-    .rate = rate,
-    .size = size_,
-    .trigger_id = trigger_id_
-  });
+  facade_->publish_status(
+    bag_uuid_, {.eta = eta, .rate = rate, .size = size_, .trigger_id = trigger_id_});
 }
 
 void recording_manager::upload(string bag_uuid, string base_path)
@@ -329,7 +322,8 @@ void recording_manager::upload(string bag_uuid, string base_path)
 
   while (!upload_client_->wait_for_service(1s)) {
     if (!rclcpp::ok()) {
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+      RCLCPP_ERROR(
+        rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
       return;
     }
   }
@@ -340,19 +334,17 @@ void recording_manager::upload(string bag_uuid, string base_path)
 
 void recording_manager::metadata_on_reconnect()
 {
-  for (mount& mnt : dm_->get_mounts()) {
+  for (mount & mnt : dm_->get_mounts()) {
     string base_path = mnt.path + "/woeden/bags/";
     if (filesystem::exists(base_path)) {
-      for (const auto& entry : filesystem::directory_iterator(base_path)) {
+      for (const auto & entry : filesystem::directory_iterator(base_path)) {
         string path = entry.path().c_str();
         if (filesystem::is_directory(path)) {
           string metadata_path = path + "/metadata.yaml";
           if (filesystem::exists(metadata_path)) {
             string bag_uuid = path.substr(path.find_last_of("/\\") + 1);
-            facade_->publish_stopped(bag_uuid, {
-              .metadata = load_metadata(metadata_path),
-              .size = directory_size(path)
-            });
+            facade_->publish_stopped(
+              bag_uuid, {.metadata = load_metadata(metadata_path), .size = directory_size(path)});
           }
         }
       }
@@ -386,9 +378,10 @@ void recording_manager::set_always_record(always_record_config arc)
 
 void recording_manager::start_always_record()
 {
-  function<void ()> always_record = bind(&recording_manager::always_record, this);
+  function<void()> always_record = bind(&recording_manager::always_record, this);
   always_record();
-  always_record_timer_ = create_wall_timer(chrono::seconds(always_record_config_.duration * 2), always_record);
+  always_record_timer_ =
+    create_wall_timer(chrono::seconds(always_record_config_.duration * 2), always_record);
   base_path_ = always_record_config_.base_path;
 }
 
@@ -422,8 +415,7 @@ void recording_manager::always_record()
     throw runtime_error("error forking recording process");
   }
 
-  if (always_record_turn_)
-  {
+  if (always_record_turn_) {
     if (always_record_pid_1_ != NULL) {
       annihilate_recording(always_record_pid_1_, always_record_bag_path_1_);
     }
@@ -448,10 +440,7 @@ void recording_manager::annihilate_recording(pid_t pid, string bag_path)
   filesystem::remove_all(bag_path);
 }
 
-void recording_manager::set_max_bandwidth(double bw)
-{
-  max_bandwidth_ = bw;
-}
+void recording_manager::set_max_bandwidth(double bw) { max_bandwidth_ = bw; }
 
 void recording_manager::upload_bytes(shared_ptr<interfaces::msg::UploadBytes> msg)
 {
@@ -460,9 +449,11 @@ void recording_manager::upload_bytes(shared_ptr<interfaces::msg::UploadBytes> ms
   facade_->publish_chunk(msg->bag_uuid, msg->index, data, length);
 }
 
-void recording_manager::upload_complete(shared_ptr<interfaces::srv::UploadComplete::Request> request, shared_ptr<interfaces::srv::UploadComplete::Response> response)
+void recording_manager::upload_complete(
+  shared_ptr<interfaces::srv::UploadComplete::Request> request,
+  shared_ptr<interfaces::srv::UploadComplete::Response> response)
 {
   facade_->publish_upload_complete(request->bag_uuid, request->chunks);
   response->success = true;
 }
-}
+}  // namespace woeden

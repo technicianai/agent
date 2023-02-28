@@ -10,8 +10,7 @@ recording_topic recording_topic::from_json(nlohmann::json data)
     .name = data["name"].get<string>(),
     .type = data["type"].get<string>(),
     .throttle = data["max_frequency"].get<bool>(),
-    .frequency = data["frequency"].get<double>()
-  };
+    .frequency = data["frequency"].get<double>()};
 }
 
 nlohmann::json recording_topic::to_json()
@@ -23,4 +22,4 @@ nlohmann::json recording_topic::to_json()
   data["frequency"] = frequency;
   return data;
 }
-}
+}  // namespace woeden

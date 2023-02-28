@@ -12,7 +12,7 @@ using namespace std;
 
 namespace woeden
 {
-string blocking_cmd(const char* cmd)
+string blocking_cmd(const char * cmd)
 {
   array<char, 128> buffer;
   string result;
@@ -40,4 +40,4 @@ bool is_valid_uuid(string uuid)
   uuid_t placeholder;
   return uuid_parse(uuid.c_str(), placeholder) > 0;
 }
-}
+}  // namespace woeden

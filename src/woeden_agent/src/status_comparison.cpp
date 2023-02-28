@@ -7,7 +7,8 @@ using namespace std;
 
 namespace woeden
 {
-status_comparison::status_comparison(string name, vector<uint8_t> levels, vector<key_value_comparison*> key_values)
+status_comparison::status_comparison(
+  string name, vector<uint8_t> levels, vector<key_value_comparison *> key_values)
 {
   name_ = name;
   levels_ = levels;
@@ -22,7 +23,7 @@ bool status_comparison::evaluate(diagnostic_msgs::msg::DiagnosticStatus diagnost
         return true;
       }
     }
-    for (key_value_comparison* kvc : key_values_) {
+    for (key_value_comparison * kvc : key_values_) {
       for (diagnostic_msgs::msg::KeyValue kv : diagnostic_status.values) {
         if (kvc->evaluate(kv)) {
           return true;
@@ -36,7 +37,7 @@ bool status_comparison::evaluate(diagnostic_msgs::msg::DiagnosticStatus diagnost
 nlohmann::json status_comparison::to_json()
 {
   nlohmann::json key_values;
-  for (key_value_comparison* kvc : key_values_) {
+  for (key_value_comparison * kvc : key_values_) {
     key_values.push_back(kvc->to_json());
   }
   nlohmann::json json;
@@ -46,22 +47,18 @@ nlohmann::json status_comparison::to_json()
   return json;
 }
 
-status_comparison* status_comparison::from_json(nlohmann::json data)
+status_comparison * status_comparison::from_json(nlohmann::json data)
 {
   vector<uint8_t> levels;
   for (uint8_t level : data["levels"]) {
     levels.push_back(level);
   }
 
-  vector<key_value_comparison*> key_values;
+  vector<key_value_comparison *> key_values;
   for (nlohmann::json kvc : data["key_values"]) {
     key_values.push_back(key_value_comparison::from_json(kvc));
   }
 
-  return new status_comparison(
-    data["name"].get<string>(),
-    levels,
-    key_values
-  );
+  return new status_comparison(data["name"].get<string>(), levels, key_values);
 }
-}
+}  // namespace woeden

@@ -1,14 +1,13 @@
 #ifndef DISK_MONITOR_H
 #define DISK_MONITOR_H
 
-#include "mqtt_facade.hpp"
-#include "disk_dto.hpp"
-
-#include "rclcpp/rclcpp.hpp"
-
 #include <functional>
 #include <string>
 #include <vector>
+
+#include "disk_dto.hpp"
+#include "mqtt_facade.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 namespace woeden
 {
@@ -30,6 +29,6 @@ private:
   const uint8_t SAMPLING_INTERVAL = 5;
   const double MINIMUM_DRIVE_SPACE_PERCENTAGE = 0.03;
 };
-}
+}  // namespace woeden
 
 #endif

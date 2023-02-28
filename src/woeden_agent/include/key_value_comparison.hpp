@@ -1,23 +1,23 @@
 #ifndef KEY_VALUE_COMPARISON_H
 #define KEY_VALUE_COMPARISON_H
 
-#include "diagnostic_msgs/msg/key_value.hpp"
-
 #include <nlohmann/json.hpp>
-
 #include <string>
+
+#include "diagnostic_msgs/msg/key_value.hpp"
 
 namespace woeden
 {
 class key_value_comparison
 {
 public:
-  key_value_comparison(std::string field, std::string comparator, std::string value, std::string value_type);
+  key_value_comparison(
+    std::string field, std::string comparator, std::string value, std::string value_type);
   bool evaluate(nlohmann::json data);
   bool evaluate(diagnostic_msgs::msg::KeyValue data);
 
   nlohmann::json to_json();
-  static key_value_comparison* from_json(nlohmann::json data);
+  static key_value_comparison * from_json(nlohmann::json data);
 
 private:
   std::string field_;
@@ -25,6 +25,6 @@ private:
   std::string value_;
   std::string value_type_;
 };
-}
+}  // namespace woeden
 
 #endif

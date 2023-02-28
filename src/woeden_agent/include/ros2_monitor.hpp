@@ -1,15 +1,6 @@
 #ifndef ROS2_MONITOR_H
 #define ROS2_MONITOR_H
 
-#include "interfaces/msg/wrapped_bytes.hpp"
-#include "interfaces/srv/custom_trigger.hpp"
-#include "interfaces/srv/record.hpp"
-#include "mqtt_facade.hpp"
-#include "recording_manager.hpp"
-#include "ros2_dto.hpp"
-
-#include "rclcpp/rclcpp.hpp"
-
 #include <functional>
 #include <map>
 #include <string>
@@ -18,6 +9,13 @@
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "diagnostic_msgs/msg/key_value.hpp"
+#include "interfaces/msg/wrapped_bytes.hpp"
+#include "interfaces/srv/custom_trigger.hpp"
+#include "interfaces/srv/record.hpp"
+#include "mqtt_facade.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "recording_manager.hpp"
+#include "ros2_dto.hpp"
 #include "std_msgs/msg/string.hpp"
 
 namespace woeden
@@ -25,25 +23,31 @@ namespace woeden
 class ros2_monitor : public rclcpp::Node
 {
 public:
-  ros2_monitor(std::shared_ptr<mqtt_facade> facade, std::shared_ptr<recording_manager> rm, std::vector<recording_trigger> triggers);
+  ros2_monitor(
+    std::shared_ptr<mqtt_facade> facade, std::shared_ptr<recording_manager> rm,
+    std::vector<recording_trigger> triggers);
 
   void add_trigger(recording_trigger rt);
   void update_trigger(uint32_t id, bool enabled);
   void open_gateway(std::string ec2_ip);
   void close_gateway();
   void push_trigger_to_python_node(std::string blob);
-  void custom_trigger_fired(const std::shared_ptr<interfaces::srv::Record::Request> request, std::shared_ptr<interfaces::srv::Record::Response> response);
+  void custom_trigger_fired(
+    const std::shared_ptr<interfaces::srv::Record::Request> request,
+    std::shared_ptr<interfaces::srv::Record::Response> response);
 
 private:
   void discover_packages();
   void discover_nodes();
   void discover_topics();
   void sample_topic_freqs();
-  void default_callback(std::shared_ptr<rclcpp::SerializedMessage> msg, topic* t);
-  void json_trigger_callback(std::shared_ptr<std_msgs::msg::String> msg, topic* t);
-  void key_value_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::KeyValue> msg, topic* t);
-  void status_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::DiagnosticStatus> msg, topic* t);
-  void status_array_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::DiagnosticArray> msg, topic* t);
+  void default_callback(std::shared_ptr<rclcpp::SerializedMessage> msg, topic * t);
+  void json_trigger_callback(std::shared_ptr<std_msgs::msg::String> msg, topic * t);
+  void key_value_trigger_callback(std::shared_ptr<diagnostic_msgs::msg::KeyValue> msg, topic * t);
+  void status_trigger_callback(
+    std::shared_ptr<diagnostic_msgs::msg::DiagnosticStatus> msg, topic * t);
+  void status_array_trigger_callback(
+    std::shared_ptr<diagnostic_msgs::msg::DiagnosticArray> msg, topic * t);
   void gateway_cmd(std::string ec2_ip);
   void rosbridge_server_cmd();
 
@@ -52,11 +56,11 @@ private:
 
   std::vector<rclcpp::SubscriptionBase::SharedPtr> subscriptions_;
   rclcpp::Client<interfaces::srv::CustomTrigger>::SharedPtr client_;
-  rclcpp::Service<interfaces::srv::Record>::SharedPtr service_; 
+  rclcpp::Service<interfaces::srv::Record>::SharedPtr service_;
   rclcpp::Publisher<interfaces::msg::WrappedBytes>::SharedPtr publisher_;
 
   std::vector<node> nodes_;
-  std::vector<topic*> topics_;
+  std::vector<topic *> topics_;
   std::vector<recording_trigger> unassigned_triggers_;
 
   rclcpp::TimerBase::SharedPtr alive_timer_;
@@ -70,6 +74,6 @@ private:
 
   const uint8_t SAMPLING_INTERVAL = 3;
 };
-}
+}  // namespace woeden
 
 #endif

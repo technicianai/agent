@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+
+  sensorsurf_agent:
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile
+    network_mode: host
+    ipc: host
+    environment:
+      - MQTT_HOST=localhost
+    volumes:
+      - ./woeden:/woeden
+
+  talker:
+    image: osrf/ros:humble-desktop
+    command: ros2 run demo_nodes_cpp talker
+    network_mode: host
+    ipc: host
+
+volumes:
+  woeden:

@@ -1,18 +1,18 @@
-#include "config.hpp"
 #include "mqtt_facade.hpp"
+
+#include <nlohmann/json.hpp>
+#include <vector>
+
+#include "config.hpp"
 #include "recording_dto.hpp"
 #include "ros2_monitor.hpp"
 #include "utils.hpp"
-
-#include <nlohmann/json.hpp>
-
-#include <vector>
 
 using namespace std;
 
 namespace woeden
 {
-mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
+mqtt_facade::mqtt_facade(string host, string ca_cert, uint64_t robot_id, string password)
 {
   robot_id_str_ = to_string(robot_id);
   password_ = password;
@@ -20,22 +20,22 @@ mqtt_facade::mqtt_facade(string host, uint64_t robot_id, string password)
   is_connected_ = false;
 
   mqtt::ssl_options ssl_opts;
-  ssl_opts.set_trust_store("/woeden_agent/certs/isrgrootx1.pem");
+  ssl_opts.set_trust_store(ca_cert);
 
-  connect_options_ = mqtt::connect_options_builder() 
-    .user_name(robot_id_str_)
-    .password(password_)
-    .keep_alive_interval(chrono::seconds(20))
-    .automatic_reconnect(chrono::seconds(2), chrono::seconds(30))
-    .clean_session()
-    .ssl(move(ssl_opts))
-    .finalize();
+  connect_options_ = mqtt::connect_options_builder()
+                       .user_name(robot_id_str_)
+                       .password(password_)
+                       .keep_alive_interval(chrono::seconds(20))
+                       .automatic_reconnect(chrono::seconds(2), chrono::seconds(30))
+                       .clean_session()
+                       .ssl(move(ssl_opts))
+                       .finalize();
 
   client_->set_message_callback(bind(&mqtt_facade::dispatch, this, placeholders::_1));
 
   client_->set_connected_handler([&](string data) -> void {
     mqtt::subscribe_options subOpts;
-    mqtt::properties props { { mqtt::property::SUBSCRIPTION_IDENTIFIER, 1 } };
+    mqtt::properties props{{mqtt::property::SUBSCRIPTION_IDENTIFIER, 1}};
     client_->subscribe(mqtt_topic("record"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("stop"), 0, subOpts, props);
     client_->subscribe(mqtt_topic("upload"), 0, subOpts, props);
@@ -65,7 +65,7 @@ void mqtt_facade::connect()
       token_conn->wait();
       client_->start_consuming();
       is_connected_ = true;
-    } catch (mqtt::exception& e) {
+    } catch (mqtt::exception & e) {
       if (!failed_once) {
         cout << "Failed to establish a connection to Woeden. Actively retrying. Reason: ";
         cout << e.what();
@@ -76,15 +76,12 @@ void mqtt_facade::connect()
   }
 }
 
-void mqtt_facade::publish_alive()
-{
-  publish("alive", "1");
-}
+void mqtt_facade::publish_alive() { publish("alive", "1"); }
 
 void mqtt_facade::publish_robot_config(robot_config rc)
 {
   nlohmann::json pkgs_json;
-  for (package& pkg : rc.packages) {
+  for (package & pkg : rc.packages) {
     nlohmann::json pkg_json;
     pkg_json["package"] = pkg.name;
     pkg_json["executables"] = nlohmann::json(pkg.executables);
@@ -98,7 +95,7 @@ void mqtt_facade::publish_robot_config(robot_config rc)
 void mqtt_facade::publish_nodes(vector<node> nodes)
 {
   nlohmann::json nodes_json;
-  for (node& n : nodes) {
+  for (node & n : nodes) {
     nlohmann::json node_json;
     node_json["name"] = n.name;
     node_json["status"] = n.status;
@@ -110,7 +107,7 @@ void mqtt_facade::publish_nodes(vector<node> nodes)
 void mqtt_facade::publish_topics(vector<topic> topics)
 {
   nlohmann::json topics_json;
-  for (topic& t : topics) {
+  for (topic & t : topics) {
     nlohmann::json topic_json;
     topic_json["name"] = t.name;
     topic_json["type"] = t.type;
@@ -161,20 +158,11 @@ void mqtt_facade::publish_status(string bag_uuid, recording_status rs)
   publish("recording", data);
 }
 
-void mqtt_facade::publish_uploaded(string data)
-{
-  publish("uploaded", data.c_str());
-}
+void mqtt_facade::publish_uploaded(string data) { publish("uploaded", data.c_str()); }
 
-void mqtt_facade::publish_gateway_open()
-{
-  publish("robot_gateway/opened", "");
-}
+void mqtt_facade::publish_gateway_open() { publish("robot_gateway/opened", ""); }
 
-void mqtt_facade::publish_gateway_closed()
-{
-  publish("robot_gateway/closed", "");
-}
+void mqtt_facade::publish_gateway_closed() { publish("robot_gateway/closed", ""); }
 
 void mqtt_facade::publish_trigger_status(vector<recording_trigger> triggers)
 {
@@ -226,16 +214,16 @@ void mqtt_facade::publish(string topic, nlohmann::json payload)
   publish(topic, payload.dump().c_str());
 }
 
-void mqtt_facade::publish(string topic, const char* payload)
+void mqtt_facade::publish(string topic, const char * payload)
 {
   try {
     mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload);
     client_->publish(msg);
     if (!is_connected_) {
-      cout << "Successfully connected to Woeden. Actively monitoring." << endl; 
+      cout << "Successfully connected to Woeden. Actively monitoring." << endl;
       is_connected_ = true;
     }
-  } catch (mqtt::exception& e) {
+  } catch (mqtt::exception & e) {
     if (is_connected_) {
       cout << "Disconnected from Woeden. Attempting to reconnect. Reason: ";
       cout << e.what();
@@ -245,16 +233,16 @@ void mqtt_facade::publish(string topic, const char* payload)
   }
 }
 
-void mqtt_facade::publish(string topic, const void* payload, size_t len)
+void mqtt_facade::publish(string topic, const void * payload, size_t len)
 {
   try {
     mqtt::message_ptr msg = mqtt::make_message(mqtt_topic(topic), payload, len);
     client_->publish(msg);
     if (!is_connected_) {
-      cout << "Successfully connected to Woeden. Actively monitoring." << endl; 
+      cout << "Successfully connected to Woeden. Actively monitoring." << endl;
       is_connected_ = true;
     }
-  } catch (mqtt::exception& e) {
+  } catch (mqtt::exception & e) {
     if (is_connected_) {
       cout << "Disconnected from Woeden. Attempting to reconnect. Reason: ";
       cout << e.what();
@@ -264,10 +252,7 @@ void mqtt_facade::publish(string topic, const void* payload, size_t len)
   }
 }
 
-string mqtt_facade::mqtt_topic(string suffix)
-{
-  return "/" + robot_id_str_ + "/" + suffix;
-}
+string mqtt_facade::mqtt_topic(string suffix) { return "/" + robot_id_str_ + "/" + suffix; }
 
 void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
 {
@@ -281,7 +266,7 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
     string base_path = data["base_path"];
     uint32_t duration = data["duration"].get<uint32_t>();
     vector<recording_topic> recording_topics;
-    for (auto& topic : data["topics"]) {
+    for (auto & topic : data["topics"]) {
       recording_topics.push_back(recording_topic::from_json(topic));
     }
 
@@ -325,58 +310,44 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
   }
 }
 
-void mqtt_facade::set_record_callback(function<void (string, string, uint32_t, vector<recording_topic>)> cb)
+void mqtt_facade::set_record_callback(
+  function<void(string, string, uint32_t, vector<recording_topic>)> cb)
 {
   on_record_ = cb;
 }
 
-void mqtt_facade::set_stop_callback(function<void ()> cb)
-{
-  on_stop_ = cb;
-}
+void mqtt_facade::set_stop_callback(function<void()> cb) { on_stop_ = cb; }
 
-void mqtt_facade::set_upload_callback(function<void (string, string)> cb)
-{
-  on_upload_ = cb;
-}
+void mqtt_facade::set_upload_callback(function<void(string, string)> cb) { on_upload_ = cb; }
 
-void mqtt_facade::set_new_trigger_callback(function<void (recording_trigger)> cb)
+void mqtt_facade::set_new_trigger_callback(function<void(recording_trigger)> cb)
 {
   on_new_trigger_ = cb;
 }
 
-void mqtt_facade::set_update_trigger_callback(function<void (uint32_t, bool)> cb)
+void mqtt_facade::set_update_trigger_callback(function<void(uint32_t, bool)> cb)
 {
   on_update_trigger_ = cb;
 }
 
-void mqtt_facade::set_update_always_record_callback(function<void (uint32_t, bool, string)> cb)
+void mqtt_facade::set_update_always_record_callback(function<void(uint32_t, bool, string)> cb)
 {
   on_update_always_record_ = cb;
 }
 
-void mqtt_facade::set_gateway_callback(function<void (string)> cb)
-{
-  on_gateway_ = cb;
-}
+void mqtt_facade::set_gateway_callback(function<void(string)> cb) { on_gateway_ = cb; }
 
-void mqtt_facade::set_gateway_close_callback(function<void ()> cb)
-{
-  on_gateway_close_ = cb;
-}
+void mqtt_facade::set_gateway_close_callback(function<void()> cb) { on_gateway_close_ = cb; }
 
-void mqtt_facade::set_reconnect_callback(function<void ()> cb)
-{
-  on_reconnect_ = cb;
-}
+void mqtt_facade::set_reconnect_callback(function<void()> cb) { on_reconnect_ = cb; }
 
-void mqtt_facade::set_gif_upload_callback(function<void (string, string, string)> cb)
+void mqtt_facade::set_gif_upload_callback(function<void(string, string, string)> cb)
 {
   on_gif_upload_ = cb;
 }
 
-void mqtt_facade::set_update_max_bandwidth_callback(function<void (double)> cb)
+void mqtt_facade::set_update_max_bandwidth_callback(function<void(double)> cb)
 {
   on_update_max_bandwidth_ = cb;
 }
-}
+}  // namespace woeden
