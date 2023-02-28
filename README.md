@@ -1,6 +1,28 @@
-# SensorSurf agent
+![SensorSurf logo](assets/logo.png)
 
-This repository contains the source code for the [SensorSurf](sensorsurf.com) agent which runs directly on a robot. The major capabilities this agent enables are:
+<br/>
+
+<div align="center">
+    <h1>SensorSurf Agent</h1>
+    <a href="https://github.com/SensorSurf/agent/blob/humble/LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" /></a>
+    <br />
+    <br />
+    <a href="https://gallery.ecr.aws/woeden/agent">Docker</a>
+    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+    <a href="https://docs.woeden.com">Docs</a>
+    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+    <a href="https://www.sensorsurf.com/blogs">Blog</a>
+    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+    <a href="https://app.woeden.com/auth/register">Try it</a>
+    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+    <a href="https://www.sensorsurf.com/contact">Contact Us</a>
+    <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+    <a href="https://linkedin.com/company/sensorsurf">LinkedIn</a>
+  <br />
+  <br />
+</div>
+
+This repository contains the source code for the [SensorSurf](sensorsurf.com) Agent which runs directly on a robot. The major capabilities this agent enables are:
 
 * Recording data on events.
 * Offloading on a poor connection.
