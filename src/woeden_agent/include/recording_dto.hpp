@@ -1,9 +1,8 @@
 #ifndef RECORDING_DTO_H
 #define RECORDING_DTO_H
 
-#include <string>
-
 #include <nlohmann/json.hpp>
+#include <string>
 
 namespace woeden
 {
@@ -31,6 +30,6 @@ struct recording_metadata
   std::string metadata;
   uintmax_t size;
 };
-}
+}  // namespace woeden
 
 #endif

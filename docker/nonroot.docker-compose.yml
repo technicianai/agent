@@ -1,9 +1,11 @@
 version: '3'
 
 services:
-  woeden_agent:
+
+  sensorsurf_agent:
     build:
-      context: .
+      context: ../
+      dockerfile: ./docker/Dockerfile
     network_mode: host
     user: 1000:1000
     environment:
@@ -11,6 +13,12 @@ services:
     volumes:
       - ~/woeden:/woeden
       - /dev/shm:/dev/shm
+
+  talker:
+    image: osrf/ros:humble-desktop
+    command: ros2 run demo_nodes_cpp talker
+    network_mode: host
+    user: 1000:1000
 
 volumes:
   woeden:

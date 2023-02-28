@@ -11,6 +11,6 @@ struct mount
   long available;
   long total;
 };
-}
+}  // namespace woeden
 
 #endif

@@ -1,33 +1,36 @@
 #ifndef RECORDING_MANAGER_H
 #define RECORDING_MANAGER_H
 
-#include "config.hpp"
-#include "disk_monitor.hpp"
-#include "mqtt_facade.hpp"
-#include "recording_dto.hpp"
-#include "recording_trigger.hpp"
-#include "rclcpp/rclcpp.hpp"
-
-#include "interfaces/msg/upload_bytes.hpp"
-#include "interfaces/srv/upload.hpp"
-#include "interfaces/srv/upload_complete.hpp"
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 #include <functional>
 #include <string>
 #include <vector>
 
-#include <time.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include "config.hpp"
+#include "disk_monitor.hpp"
+#include "interfaces/msg/upload_bytes.hpp"
+#include "interfaces/srv/upload.hpp"
+#include "interfaces/srv/upload_complete.hpp"
+#include "mqtt_facade.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "recording_dto.hpp"
+#include "recording_trigger.hpp"
 
 namespace woeden
 {
 class recording_manager : public rclcpp::Node
 {
 public:
-  recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade, always_record_config arc, double max_bandwidth);
+  recording_manager(
+    std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade, always_record_config arc,
+    double max_bandwidth);
 
-  void start(std::string bag_uuid, std::string base_path, uint32_t duration, std::vector<recording_topic> recording_topics);
+  void start(
+    std::string bag_uuid, std::string base_path, uint32_t duration,
+    std::vector<recording_topic> recording_topics);
   void auto_start(recording_trigger rt);
   void stop();
   bool is_recording();
@@ -51,9 +54,11 @@ private:
   void always_record();
   void annihilate_recording(pid_t pid, std::string bag_path);
   void upload_bytes(std::shared_ptr<interfaces::msg::UploadBytes> msg);
-  void upload_complete(std::shared_ptr<interfaces::srv::UploadComplete::Request> request, std::shared_ptr<interfaces::srv::UploadComplete::Response> response);
+  void upload_complete(
+    std::shared_ptr<interfaces::srv::UploadComplete::Request> request,
+    std::shared_ptr<interfaces::srv::UploadComplete::Response> response);
 
-  void remote_throttle_from_db(const char* db3_path);
+  void remote_throttle_from_db(const char * db3_path);
   std::string load_metadata(std::string metadata_path);
   std::string remote_throttle_from_metadata(std::string metadata);
   void update_metadata(std::string metadata_path, std::string metadata);
@@ -109,6 +114,6 @@ private:
 
   const int SAMPLING_INTERVAL = 1;
 };
-}
+}  // namespace woeden
 
 #endif

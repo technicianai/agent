@@ -1,12 +1,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "recording_trigger.hpp"
-
 #include <nlohmann/json.hpp>
-
 #include <string>
 #include <vector>
+
+#include "recording_trigger.hpp"
 
 namespace woeden
 {
@@ -40,6 +39,6 @@ private:
   std::string path_;
   nlohmann::json contents_;
 };
-}
+}  // namespace woeden
 
 #endif

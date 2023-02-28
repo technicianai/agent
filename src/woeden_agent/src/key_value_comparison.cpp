@@ -6,7 +6,8 @@ using namespace std;
 
 namespace woeden
 {
-key_value_comparison::key_value_comparison(string field, string comparator, string value, string value_type)
+key_value_comparison::key_value_comparison(
+  string field, string comparator, string value, string value_type)
 {
   field_ = field;
   comparator_ = comparator;
@@ -65,13 +66,10 @@ nlohmann::json key_value_comparison::to_json()
   return json;
 }
 
-key_value_comparison* key_value_comparison::from_json(nlohmann::json data)
+key_value_comparison * key_value_comparison::from_json(nlohmann::json data)
 {
   return new key_value_comparison(
-    data["field"].get<string>(),
-    data["comparator"].get<string>(),
-    data["value"].get<string>(),
-    data["value_type"].get<string>()
-  );
+    data["field"].get<string>(), data["comparator"].get<string>(), data["value"].get<string>(),
+    data["value_type"].get<string>());
 }
-}
+}  // namespace woeden

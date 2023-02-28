@@ -6,3 +6,4 @@ log/
 woeden/
 .env
 *.env
+__pycache__/*

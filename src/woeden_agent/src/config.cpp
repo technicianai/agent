@@ -1,7 +1,8 @@
 #include "config.hpp"
-#include "utils.hpp"
 
 #include <fstream>
+
+#include "utils.hpp"
 
 using namespace std;
 
@@ -13,20 +14,14 @@ config::config(string home_dir)
   contents_ = load(path_);
 }
 
-uint32_t config::get_id()
-{
-  return contents_["id"].get<uint32_t>();
-}
+uint32_t config::get_id() { return contents_["id"].get<uint32_t>(); }
 
-string config::get_password()
-{
-  return contents_["password"].get<string>();
-}
+string config::get_password() { return contents_["password"].get<string>(); }
 
 vector<recording_trigger> config::get_recording_triggers()
 {
   vector<recording_trigger> rts;
-  for (const auto& rt_json : contents_["triggers"]) {
+  for (const auto & rt_json : contents_["triggers"]) {
     rts.push_back(recording_trigger::from_json(rt_json));
   }
   return rts;
@@ -41,7 +36,7 @@ void config::add_trigger(recording_trigger rt)
 
 void config::update_trigger(uint32_t id, bool enabled)
 {
-  for (auto& trigger : contents_["triggers"]) {
+  for (auto & trigger : contents_["triggers"]) {
     if (id == trigger["id"].get<uint32_t>()) {
       trigger["enabled"] = enabled;
       save(contents_, path_);
@@ -66,17 +61,12 @@ void config::save(nlohmann::json contents, string path)
 always_record_config config::get_always_record()
 {
   if (!contents_.contains("always_record")) {
-    return {
-      .duration = 0,
-      .enabled = false,
-      .base_path = "/"
-    };
+    return {.duration = 0, .enabled = false, .base_path = "/"};
   }
   return {
     .duration = contents_["always_record"]["duration"].get<uint32_t>(),
     .enabled = contents_["always_record"]["enabled"].get<bool>(),
-    .base_path = contents_["always_record"]["base_path"]
-  };
+    .base_path = contents_["always_record"]["base_path"]};
 }
 
 void config::update_always_record(uint32_t duration, bool enabled, string base_path)
@@ -92,7 +82,7 @@ void config::update_always_record(uint32_t duration, bool enabled, string base_p
 double config::get_max_bandwidth()
 {
   if (!contents_.contains("max_bandwidth")) {
-    return 13107200; // 100 megabits in bytes
+    return 13107200;  // 100 megabits in bytes
   }
   return contents_["max_bandwidth"].get<double>();
 }
@@ -102,4 +92,4 @@ void config::update_max_bandwidth(double bandwidth)
   contents_["max_bandwidth"] = bandwidth;
   save(contents_, path_);
 }
-}
+}  // namespace woeden

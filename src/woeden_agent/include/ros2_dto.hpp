@@ -1,10 +1,10 @@
 #ifndef ROS2_DTO_H
 #define ROS2_DTO_H
 
-#include "recording_trigger.hpp"
-
 #include <string>
 #include <vector>
+
+#include "recording_trigger.hpp"
 
 namespace woeden
 {
@@ -33,6 +33,6 @@ struct topic
   uint32_t message_count;
   std::vector<recording_trigger> triggers;
 };
-}
+}  // namespace woeden
 
 #endif
