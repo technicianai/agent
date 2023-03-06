@@ -41,7 +41,7 @@ Before running the agent, make sure you have completed both of the following pre
 2. Run our setup script to configure your machine:
 
 ```bash
-$ wget https://github.com/SensorSurf/woeden-scripts/blob/master/setup.bash
+$ wget https://raw.githubusercontent.com/SensorSurf/woeden-scripts/master/setup.bash
 $ bash setup.bash
 ```
 
