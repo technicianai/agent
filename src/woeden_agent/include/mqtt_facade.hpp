@@ -50,7 +50,7 @@ public:
   void publish_chunk(std::string bag_uuid, uint32_t index, const void* contents, size_t len);
 
   void set_record_callback(std::function<void (std::string, std::string, uint32_t, std::vector<recording_topic>)> cb);
-  void set_stop_callback(std::function<void ()> cb);
+  void set_stop_callback(std::function<void (bool)> cb);
   void set_upload_callback(std::function<void (std::string, std::string)> cb);
   void set_update_trigger_callback(std::function<void (uint32_t, bool)> cb);
   void set_update_always_record_callback(std::function<void (uint32_t, bool, std::string)> cb);
@@ -76,7 +76,7 @@ private:
   std::string password_;
 
   std::function<void (std::string, std::string, uint32_t, std::vector<recording_topic>)> on_record_;
-  std::function<void ()> on_stop_;
+  std::function<void (bool)> on_stop_;
   std::function<void (std::string, std::string)> on_upload_;
   std::function<void (recording_trigger)> on_new_trigger_;
   std::function<void (uint32_t, bool)> on_update_trigger_;

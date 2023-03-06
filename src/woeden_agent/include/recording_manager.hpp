@@ -27,9 +27,9 @@ class recording_manager : public rclcpp::Node
 public:
   recording_manager(std::shared_ptr<disk_monitor> dm, std::shared_ptr<mqtt_facade> facade, always_record_config arc, double max_bandwidth);
 
-  void start(std::string bag_uuid, std::string base_path, uint32_t duration, std::vector<recording_topic> recording_topics);
+  void start(std::string bag_uuid, std::string base_path, uint32_t duration, bool temp, std::vector<recording_topic> recording_topics);
   void auto_start(recording_trigger rt);
-  void stop();
+  void stop(bool merge_buffer);
   bool is_recording();
   uintmax_t bag_size();
   uintmax_t bag_size(std::string bag_path);
@@ -47,6 +47,10 @@ public:
 private:
   void throttle_cmd(std::string topic, double frequency);
   void always_record_cmd(std::string bag_path);
+  void buffer_run_cmd(uint32_t duration);
+  void buffer_dump_cmd(std::string buffer_path);
+  void buffer_pause_cmd();
+  void buffer_resume_cmd();
   void record_cmd(std::string bag_path, std::vector<recording_topic> recording_topics);
   void start_always_record();
   void stop_always_record();
@@ -69,18 +73,8 @@ private:
 
   pid_t recording_pid_;
   pid_t upload_pid_;
+  pid_t buffer_pid_;
   std::vector<pid_t> throttle_pids_;
-
-  pid_t always_record_pid_1_;
-  pid_t always_record_pid_2_;
-
-  bool always_record_turn_;
-
-  std::string always_record_bag_path_1_;
-  std::string always_record_bag_path_2_;
-
-  std::string always_record_bag_uuid_1_;
-  std::string always_record_bag_uuid_2_;
 
   always_record_config always_record_config_;
 
@@ -98,7 +92,6 @@ private:
 
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::TimerBase::SharedPtr auto_stop_timer_;
-  rclcpp::TimerBase::SharedPtr always_record_timer_;
 
   rclcpp::Client<interfaces::srv::Upload>::SharedPtr upload_client_;
   rclcpp::Subscription<interfaces::msg::UploadBytes>::SharedPtr upload_subscription_;

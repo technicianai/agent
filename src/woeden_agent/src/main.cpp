@@ -27,8 +27,8 @@ int main(int argc, char * argv[])
   auto rm = make_shared<recording_manager>(dm, facade, c.get_always_record(), c.get_max_bandwidth());
   auto r2m = make_shared<ros2_monitor>(facade, rm, c.get_recording_triggers());
 
-  facade->set_record_callback(bind(&recording_manager::start, rm, _1, _2, _3, _4));
-  facade->set_stop_callback(bind(&recording_manager::stop, rm));
+  facade->set_record_callback(bind(&recording_manager::start, rm, _1, _2, _3, false, _4));
+  facade->set_stop_callback(bind(&recording_manager::stop, rm, _1));
   facade->set_upload_callback(bind(&recording_manager::upload, rm, _1, _2));
   facade->set_new_trigger_callback([&c, r2m](recording_trigger rt) -> void {
     r2m->add_trigger(rt);

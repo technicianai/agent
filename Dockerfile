@@ -51,7 +51,8 @@ RUN apt-get update && apt-get install -y \
     ros-foxy-nmea-msgs \
     ros-noetic-rosbag \
     ros-noetic-rosbridge-server \
-    ros-noetic-topic-tools
+    ros-noetic-topic-tools \
+    ros-noetic-rosbag-snapshot
 RUN cd downloads && \
     git clone https://github.com/IntelRealSense/realsense-ros.git && \
     cd realsense-ros && \
@@ -68,7 +69,8 @@ RUN cp -a /downloads/realsense-ros/realsense2_camera/msg/. /woeden_agent/interfa
 RUN cp -a /downloads/zed-ros-interfaces/msg/. /woeden_agent/interfaces/msg
 RUN chmod 400 /woeden_agent/certs/gateway.pem
 
-RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip rosbags
+RUN python3 bag_utils/get-pip.py && python3 -m pip install stream-zip rosbags matplotlib
+RUN . /opt/ros/noetic/setup.bash && python3 -m pip install rosbag-merge
 
 RUN . /opt/ros/foxy/setup.bash && colcon build --packages-skip ros1_bridge
 RUN . /opt/ros/noetic/setup.bash && \

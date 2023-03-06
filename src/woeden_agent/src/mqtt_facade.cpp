@@ -297,7 +297,7 @@ void mqtt_facade::dispatch(mqtt::const_message_ptr msg)
 
     on_record_(bag_uuid, base_path, duration, recording_topics);
   } else if (topic == mqtt_topic("stop")) {
-    on_stop_();
+    on_stop_(false);
   } else if (topic == mqtt_topic("upload")) {
     nlohmann::json data = nlohmann::json::parse(payload);
     string bag_uuid = data["bag_uuid"];
@@ -345,7 +345,7 @@ void mqtt_facade::set_record_callback(function<void (string, string, uint32_t, v
   on_record_ = cb;
 }
 
-void mqtt_facade::set_stop_callback(function<void ()> cb)
+void mqtt_facade::set_stop_callback(function<void (bool)> cb)
 {
   on_stop_ = cb;
 }

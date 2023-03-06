@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sqlite3.h> 
 #include <string.h>
+#include <stdio.h>
 
 using namespace std;
 using namespace placeholders;
@@ -27,7 +28,6 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
   recording_ = false;
   stopping_ = false;
   trigger_id_ = NULL;
-  always_record_turn_ = true;
   always_record_config_ = arc;
   max_bandwidth_ = max_bandwidth;
   if (arc.enabled) {
@@ -38,15 +38,20 @@ recording_manager::recording_manager(shared_ptr<disk_monitor> dm, shared_ptr<mqt
   upload_complete_ = this->create_service<interfaces::srv::UploadComplete>("/upload_complete", bind(&recording_manager::upload_complete, this, _1, _2));
 }
 
-void recording_manager::start(string bag_uuid, string base_path, uint32_t duration, vector<recording_topic> recording_topics)
+void recording_manager::start(string bag_uuid, string base_path, uint32_t duration, bool temp, vector<recording_topic> recording_topics)
 {
-  if (recording_ || always_record_config_.enabled) {
+  if (recording_) {
     return;
   }
   bag_uuid_ = bag_uuid;
   base_path_ = base_path;
-  bag_path_ = base_path_ + "/woeden/bags/" + bag_uuid_ + ".bag";
-
+  bag_path_ = base_path_ + "/woeden/bags/" + bag_uuid_;
+  if (temp) {
+    bag_path_ += "_temp.bag";
+  } else {
+    bag_path_ += ".bag";
+  }
+  
   for (const recording_topic & rt : recording_topics) {
     if (rt.throttle) {
       pid_t pid = fork();
@@ -68,13 +73,15 @@ void recording_manager::start(string bag_uuid, string base_path, uint32_t durati
   } else if (recording_pid_ > 0) {
     recording_ = true;
     facade_->publish_started(bag_uuid_, trigger_id_);
-    function<void ()> status_check = bind(&recording_manager::status_check, this);
-    timer_ = create_wall_timer(chrono::seconds(15), status_check);
-    if (duration > 0) {
-      auto_stop_timer_ = create_wall_timer(chrono::seconds(duration), [&]() -> void {
-        stop();
-        auto_stop_timer_.reset();
-      });
+    if (!temp) {
+      function<void ()> status_check = bind(&recording_manager::status_check, this);
+      timer_ = create_wall_timer(chrono::seconds(15), status_check);
+      if (duration > 0) {
+        auto_stop_timer_ = create_wall_timer(chrono::seconds(duration), [&]() -> void {
+          stop(false);
+          auto_stop_timer_.reset();
+        });
+      }
     }
   } else {
     throw runtime_error("error forking recording process");
@@ -85,56 +92,36 @@ void recording_manager::auto_start(recording_trigger rt)
 {
   trigger_id_ = rt.get_id();
   if (!always_record_config_.enabled) {
-    start(uuid(), rt.get_base_path(), rt.get_duration(), rt.get_record_topics());
+    start(uuid(), rt.get_base_path(), rt.get_duration(), false, rt.get_record_topics());
     return;
   }
 
-  if (stopping_ || always_record_pid_1_ == NULL || always_record_pid_2_ == NULL) {
+  if (stopping_) {
     return;
   }
-
-  always_record_timer_.reset();
 
   if (!recording_) {
-    recording_ = true;
-
-    always_record_timer_.reset();
     trigger_start_time_ = time(0);
     trigger_duration_ = rt.get_duration();
-    
-    if ((always_record_turn_ && always_record_pid_1_ != NULL) || (!always_record_turn_ && always_record_pid_2_ == NULL && always_record_pid_1_ != NULL)) {
-      recording_pid_ = always_record_pid_1_;
-      bag_uuid_ = always_record_bag_uuid_1_;
-      bag_path_ = always_record_bag_path_1_;
-      annihilate_recording(always_record_pid_2_, always_record_bag_path_2_);
-    } else if ((!always_record_turn_ && always_record_pid_2_ != NULL) || (always_record_turn_ && always_record_pid_1_ == NULL && always_record_pid_2_ != NULL)) {
-      recording_pid_ = always_record_pid_2_;
-      bag_uuid_ = always_record_bag_uuid_2_;
-      bag_path_ = always_record_bag_path_2_;
-      annihilate_recording(always_record_pid_1_, always_record_bag_path_1_);
-    }
 
-    function<void ()> status_check = bind(&recording_manager::status_check, this);
-    timer_ = create_wall_timer(chrono::seconds(15), status_check);
+    string bag_uuid = uuid();
+    start(bag_uuid, rt.get_base_path(), rt.get_duration(), true, rt.get_record_topics());
+
+    string buffer_path = rt.get_base_path() + "/woeden/bags/" + bag_uuid + "_buffer.bag";
+    if (fork() == 0) buffer_dump_cmd(buffer_path);
+    if (fork() == 0) buffer_pause_cmd();
   } else {
-    time_t current_time = time(0);
-    time_t time_left = trigger_start_time_ + trigger_duration_ - current_time;
-    if (time_left < rt.get_duration()) {
-      trigger_duration_ += rt.get_duration() - time_left;
-      auto_stop_timer_.reset();
-    }
+    auto_stop_timer_.reset();
   }
 
   auto_stop_timer_ = create_wall_timer(chrono::seconds(trigger_duration_), [&]() -> void {
     auto_stop_timer_.reset();
-    stop();
-    always_record_pid_1_ = NULL;
-    always_record_pid_2_ = NULL;
-    start_always_record();
+    stop(true);
+    if (fork() == 0) buffer_resume_cmd();
   });
 }
 
-void recording_manager::stop()
+void recording_manager::stop(bool merge_buffer)
 {
   if (recording_pid_ <= 0) {
     throw logic_error("only the parent can stop recording");
@@ -149,26 +136,20 @@ void recording_manager::stop()
     killpg(pgid, SIGKILL);
   }
 
-  // char* args[4] = { "rosnode", "kill", "/trigger_bag", NULL };
-  // if (fork() > 0) {
-  //   execvp("rosnode", args);
-  // }
   sleep(10);
 
-  // for (const auto & entry : filesystem::directory_iterator(bag_path_)) {
-  //   string db_path = entry.path().string();
-  //   if (db_path.find(".db3") != string::npos) {
-  //     remote_throttle_from_db(db_path.c_str());
-  //   }
-  // }
+  if (merge_buffer) {
+    string path = base_path_ + "/woeden/bags/";
+    string buffer_path = path + bag_uuid_ + "_buffer.bag";
+    string temp_path = path + bag_uuid_ + "_temp.bag";
+    string cmd = "rosbag-merge --input_bags " + buffer_path + " " + temp_path
+                  + " --output_path " + path + " --outbag_name " + bag_uuid_;
+    bag_path_ = path + bag_uuid_ + ".bag";
+    blocking_cmd(cmd.c_str());
+    remove(temp_path.c_str());
+    remove(buffer_path.c_str());
+  }
 
-  // string metadata_path = bag_path_ + "/metadata.yaml";
-  // string metadata = load_metadata(metadata_path);
-  // metadata = remote_throttle_from_metadata(metadata);
-  // if (trigger_id_ != NULL) {
-  //   metadata += "\ntrigger: " + to_string(trigger_id_);
-  // }
-  // update_metadata(metadata_path, metadata);
   uintmax_t size = bag_size();
   facade_->publish_stopped(bag_uuid_, size);
 
@@ -223,9 +204,44 @@ void recording_manager::always_record_cmd(string bag_path)
   execvp("rosbag", args);
 }
 
+void recording_manager::buffer_run_cmd(uint32_t duration)
+{
+  string duration_string = to_string(duration);
+  char* args[7] ={
+    "rosrun", "rosbag_snapshot", "snapshot",
+    "-a",
+    "-d", const_cast<char*>(duration_string.c_str()),
+    NULL
+  };
+  execvp("rosrun", args);
+}
+
+void recording_manager::buffer_dump_cmd(string buffer_path)
+{
+  char* args[7] = {
+    "rosrun", "rosbag_snapshot", "snapshot",
+    "-t",
+    "-O", const_cast<char*>(buffer_path.c_str()),
+    NULL
+  };
+  execvp("rosrun", args);
+}
+
+void recording_manager::buffer_pause_cmd()
+{
+  char* args[5] = { "rosrun", "rosbag_snapshot", "snapshot", "-p", NULL };
+  execvp("rosrun", args);
+}
+
+void recording_manager::buffer_resume_cmd()
+{
+  char* args[5] = { "rosrun", "rosbag_snapshot", "snapshot", "-r", NULL };
+  execvp("rosrun", args);
+};
+
 void recording_manager::record_cmd(string bag_path, vector<recording_topic> recording_topics)
 {
-  char* args[recording_topics.size() + 6] = { "rosbag", "record", "__name:=trigger_bag"};
+  char* args[recording_topics.size() + 6] = { "rosbag", "record", "__name:=trigger_bag" };
   int i = 2;
 
   for (const recording_topic & rt : recording_topics) {
@@ -296,7 +312,7 @@ void recording_manager::status_check()
 {
   long remaining = dm_->remaining(base_path_);
   if (remaining <= 0) {
-    stop();
+    stop(false);
   }
 
   try {
@@ -387,66 +403,28 @@ void recording_manager::set_always_record(always_record_config arc)
 
 void recording_manager::start_always_record()
 {
-  function<void ()> always_record = bind(&recording_manager::always_record, this);
-  always_record();
-  always_record_timer_ = create_wall_timer(chrono::seconds(always_record_config_.duration * 2), always_record);
   base_path_ = always_record_config_.base_path;
+  
+  pid_t buffer_pid_ = fork();
+  if (buffer_pid_ == 0) {
+    close(2);
+    buffer_run_cmd(always_record_config_.duration);
+  } else if (buffer_pid_ < 0) {
+    throw runtime_error("error forking recording process");
+  }
 }
 
 void recording_manager::stop_always_record()
 {
   timer_.reset();
-  always_record_timer_.reset();
   auto_stop_timer_.reset();
-  if (always_record_pid_1_ != NULL) {
-    annihilate_recording(always_record_pid_1_, always_record_bag_path_1_);
-  }
-  if (always_record_pid_2_ != NULL) {
-    annihilate_recording(always_record_pid_2_, always_record_bag_path_2_);
-  }
+
+  kill(buffer_pid_, SIGINT);
+
   recording_ = false;
   stopping_ = false;
   trigger_id_ = NULL;
   recording_pid_ = NULL;
-}
-
-void recording_manager::always_record()
-{
-  string bag_uuid = uuid();
-  string always_record_bag_path = always_record_config_.base_path + "/woeden/bags/" + bag_uuid + ".bag";
-  pid_t always_record_pid = fork();
-
-  if (always_record_pid == 0) {
-    close(2);
-    always_record_cmd(always_record_bag_path);
-  } else if (always_record_pid < 0) {
-    throw runtime_error("error forking recording process");
-  }
-
-  if (always_record_turn_)
-  {
-    if (always_record_pid_1_ != NULL) {
-      annihilate_recording(always_record_pid_1_, always_record_bag_path_1_);
-    }
-    always_record_pid_1_ = always_record_pid;
-    always_record_bag_uuid_1_ = bag_uuid;
-    always_record_bag_path_1_ = always_record_bag_path;
-  } else {
-    if (always_record_pid_2_ != NULL) {
-      annihilate_recording(always_record_pid_2_, always_record_bag_path_2_);
-    }
-    always_record_pid_2_ = always_record_pid;
-    always_record_bag_uuid_2_ = bag_uuid;
-    always_record_bag_path_2_ = always_record_bag_path;
-  }
-
-  always_record_turn_ = !always_record_turn_;
-}
-
-void recording_manager::annihilate_recording(pid_t pid, string bag_path)
-{
-  kill(pid, SIGKILL);
-  filesystem::remove_all(bag_path);
 }
 
 void recording_manager::set_max_bandwidth(double bw)
