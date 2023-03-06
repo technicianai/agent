@@ -288,7 +288,7 @@ void ros2_monitor::close_gateway()
 void ros2_monitor::gateway_cmd(string ec2_ip)
 {
   string ec2_login = "ec2-user@" + ec2_ip;
-  char* args[10] = { "ssh", "-o", "StrictHostKeyChecking=no", "-i", "/woeden_agent/certs/gateway.pem", "-N", "-R", ":9090:localhost:9090", const_cast<char*>(ec2_login.c_str()), NULL };
+  char* args[10] = { "ssh", "-o", "StrictHostKeyChecking=no", "-i", "placeholder. this feature is only enabled for enterprise users.", "-N", "-R", ":9090:localhost:9090", const_cast<char*>(ec2_login.c_str()), NULL };
   execvp("ssh", args);
 }
 
