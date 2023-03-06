@@ -405,7 +405,7 @@ void recording_manager::start_always_record()
 {
   base_path_ = always_record_config_.base_path;
   
-  pid_t buffer_pid_ = fork();
+  buffer_pid_ = fork();
   if (buffer_pid_ == 0) {
     close(2);
     buffer_run_cmd(always_record_config_.duration);
@@ -419,9 +419,7 @@ void recording_manager::stop_always_record()
   timer_.reset();
   auto_stop_timer_.reset();
 
-  RCLCPP_INFO(get_logger(), "tf");
-  kill(buffer_pid_, SIGINT);
-  RCLCPP_INFO(get_logger(), "tf2");
+  kill(buffer_pid_, SIGKILL);
 
   recording_ = false;
   stopping_ = false;
