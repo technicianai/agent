@@ -304,7 +304,7 @@ void ros2_monitor::gateway_cmd(string ec2_ip)
     "-o",
     "StrictHostKeyChecking=no",
     "-i",
-    "/woeden_agent/certs/gateway.pem",
+    "placeholder. this feature is only enabled for enterprise users.",
     "-N",
     "-R",
     ":9090:localhost:9090",
