@@ -1,0 +1,35 @@
+version: '2'
+
+networks:
+  ros:
+    driver: bridge
+
+services:
+  ros-master:
+    image: ros:noetic-ros-core
+    command: stdbuf -o L roscore
+    networks:
+      - ros
+
+  talker:
+    image: ros:noetic-ros-core
+    depends_on:
+      - ros-master
+    environment:
+      - "ROS_MASTER_URI=http://ros-master:11311"
+    command: stdbuf -o L rostopic pub /chatter std_msgs/String "hello" -r 1
+    networks:
+      - ros
+
+  sensorsurf:
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile
+    depends_on:
+      - ros-master
+    environment:
+      - "ROS_MASTER_URI=http://ros-master:11311"
+    volumes:
+      - ~/woeden:/woeden
+    networks:
+      - ros

@@ -12,12 +12,18 @@ using namespace woeden;
 using namespace std; 
 using namespace placeholders;
 
+std::string get_env_or_default(string variable_name, string default_value)
+{
+  const char* value = getenv(variable_name.c_str());
+  return value ? value : default_value;
+}
+
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
-  string host = getenv("MQTT_HOST");
-  string home = getenv("HOME");
+  string host = get_env_or_default("MQTT_HOST", "ssl://mqtt.woeden.com");
+  string home = get_env_or_default("HOME", "~/");
 
   config c(home);
 

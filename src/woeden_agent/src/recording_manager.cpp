@@ -419,7 +419,9 @@ void recording_manager::stop_always_record()
   timer_.reset();
   auto_stop_timer_.reset();
 
+  RCLCPP_INFO(get_logger(), "tf");
   kill(buffer_pid_, SIGINT);
+  RCLCPP_INFO(get_logger(), "tf2");
 
   recording_ = false;
   stopping_ = false;

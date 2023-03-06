@@ -6,12 +6,8 @@ if [[ ! -f "/woeden/config" ]]; then
 fi
 mkdir -p /woeden/bags
 
-unset ROS_DISTRO
 . /opt/ros/foxy/setup.bash
 . install/setup.bash
-
-unset ROS_DISTRO
-. /opt/ros/noetic/setup.bash
 
 ros2 run woeden_agent woeden_agent &
 ros2 run woeden_agent trigger_worker.py &
