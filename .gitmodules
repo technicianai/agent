@@ -9,4 +9,4 @@
 	url = https://github.com/ros-tooling/topic_tools.git
 [submodule "src/ros1_bridge"]
 	path = src/ros1_bridge
-	url = git@github.com:woedeninc/ros1_bridge.git
+	url = git@github.com:SensorSurf/ros1_bridge.git

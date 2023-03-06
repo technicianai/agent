@@ -12,4 +12,4 @@ mkdir -p /woeden/bags
 ros2 run woeden_agent woeden_agent &
 ros2 run woeden_agent trigger_worker.py &
 ros2 run woeden_agent upload_worker.py &
-ros2 run ros1_bridge dynamic_bridge --bridge-all-1to2-topics
+ros2 run ros1_bridge dynamic_bridge --bridge-all-1to2-topics --unidirectional-1to2
