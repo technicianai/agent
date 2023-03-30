@@ -141,13 +141,17 @@ void recording_manager::stop(bool merge_buffer)
   if (merge_buffer) {
     string path = base_path_ + "/woeden/bags/";
     string buffer_path = path + bag_uuid_ + "_buffer.bag";
-    string temp_path = path + bag_uuid_ + "_temp.bag";
-    string cmd = "rosbag-merge --input_bags " + buffer_path + " " + temp_path
-                  + " --output_path " + path + " --outbag_name " + bag_uuid_;
+    // TODO: merge temp bag with buffer to create final bag
+    // string temp_path = path + bag_uuid_ + "_temp.bag";
+    // string cmd = "rosbag-merge --input_bags " + buffer_path + " " + temp_path
+    //               + " --output_path " + path + " --outbag_name " + bag_uuid_;
     bag_path_ = path + bag_uuid_ + ".bag";
-    blocking_cmd(cmd.c_str());
-    remove(temp_path.c_str());
-    remove(buffer_path.c_str());
+    // blocking_cmd(cmd.c_str());
+    // remove(temp_path.c_str());
+    // remove(buffer_path.c_str());
+
+    // TODO: remove the next lines which just rename the buffer
+    filesystem::rename(buffer_path, bag_path_);
   }
 
   uintmax_t size = bag_size();
